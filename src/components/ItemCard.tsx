@@ -2,35 +2,37 @@ import { Heart, MapPin, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Item } from "@/hooks/useSupabaseData";
 
 interface ItemCardProps {
-  title: string;
-  price: string;
-  location: string;
-  condition: string;
-  rating: number;
-  image: string;
-  category: string;
+  item: Item;
   isLiked?: boolean;
 }
 
-const ItemCard = ({ 
-  title, 
-  price, 
-  location, 
-  condition, 
-  rating, 
-  image, 
-  category,
-  isLiked = false 
-}: ItemCardProps) => {
+const ItemCard = ({ item, isLiked = false }: ItemCardProps) => {
+  const formatPrice = (price?: number) => {
+    if (!price) return "Gratuito";
+    return `R$ ${price.toFixed(2)}`;
+  };
+
+  const formatCondition = (condition: string) => {
+    const conditions: Record<string, string> = {
+      'novo': 'Novo',
+      'como_novo': 'Como Novo', 
+      'bom': 'Bom Estado',
+      'regular': 'Regular',
+      'precisa_reparo': 'Precisa Reparo'
+    };
+    return conditions[condition] || condition;
+  };
+
   return (
     <Card className="overflow-hidden transition-all duration-300 hover:shadow-card hover:-translate-y-1 group cursor-pointer">
       <div className="relative">
         <div className="aspect-square bg-muted/30 overflow-hidden">
           <img 
-            src={image} 
-            alt={title}
+            src={item.image_urls?.[0] || "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400"} 
+            alt={item.title}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         </div>
@@ -53,34 +55,34 @@ const ItemCard = ({
           variant="secondary" 
           className="absolute top-2 left-2 bg-primary/10 text-primary border-primary/20"
         >
-          {category}
+          {item.categories?.name || 'Categoria'}
         </Badge>
       </div>
 
       <CardContent className="p-4">
         <div className="space-y-2">
           <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
-            {title}
+            {item.title}
           </h3>
           
           <div className="flex items-center justify-between">
-            <span className="text-lg font-bold text-primary">{price}</span>
+            <span className="text-lg font-bold text-primary">{formatPrice(item.price)}</span>
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-              <span>{rating}</span>
+              <span>{item.profiles?.rating || 0}</span>
             </div>
           </div>
 
           <div className="flex items-center space-x-1 text-xs text-muted-foreground">
             <MapPin className="h-3 w-3" />
-            <span>{location}</span>
+            <span>{item.city || item.location || 'Localização'}</span>
           </div>
 
           <Badge 
             variant="outline" 
             className="text-xs border-primary/20 text-primary"
           >
-            {condition}
+            {formatCondition(item.condition)}
           </Badge>
         </div>
       </CardContent>

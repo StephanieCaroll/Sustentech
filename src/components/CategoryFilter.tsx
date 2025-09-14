@@ -19,6 +19,14 @@ interface CategoryFilterProps {
   type: "items" | "services";
   activeCategory: string;
   onCategoryChange: (category: string) => void;
+  categories: Category[];
+}
+
+interface Category {
+  id: string;
+  name: string;
+  icon?: string;
+  type: string;
 }
 
 const itemCategories = [
@@ -41,8 +49,12 @@ const serviceCategories = [
   { id: "geral", name: "Conserto Geral", icon: Wrench },
 ];
 
-const CategoryFilter = ({ type, activeCategory, onCategoryChange }: CategoryFilterProps) => {
-  const categories = type === "items" ? itemCategories : serviceCategories;
+const CategoryFilter = ({ type, activeCategory, onCategoryChange, categories: dbCategories }: CategoryFilterProps) => {
+  // Usar categorias do banco ou fallback para as estáticas
+  const staticCategories = type === "items" ? itemCategories : serviceCategories;
+  const categories = dbCategories.length > 0 
+    ? [{ id: "all", name: "Todos", icon: null, type: "both" }, ...dbCategories.map(cat => ({ ...cat, icon: null }))]
+    : staticCategories;
 
   return (
     <div className="w-full bg-background py-3 border-b">
