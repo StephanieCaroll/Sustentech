@@ -14,7 +14,253 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      categories: {
+        Row: {
+          created_at: string
+          icon: string | null
+          id: string
+          name: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name?: string
+          type?: string
+        }
+        Relationships: []
+      }
+      items: {
+        Row: {
+          category_id: string
+          city: string | null
+          condition: Database["public"]["Enums"]["item_condition"]
+          created_at: string
+          description: string | null
+          id: string
+          image_urls: string[] | null
+          is_active: boolean | null
+          location: string | null
+          price: number | null
+          state: string | null
+          title: string
+          type: Database["public"]["Enums"]["item_type"]
+          updated_at: string
+          user_id: string
+          views: number | null
+        }
+        Insert: {
+          category_id: string
+          city?: string | null
+          condition: Database["public"]["Enums"]["item_condition"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_urls?: string[] | null
+          is_active?: boolean | null
+          location?: string | null
+          price?: number | null
+          state?: string | null
+          title: string
+          type: Database["public"]["Enums"]["item_type"]
+          updated_at?: string
+          user_id: string
+          views?: number | null
+        }
+        Update: {
+          category_id?: string
+          city?: string | null
+          condition?: Database["public"]["Enums"]["item_condition"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_urls?: string[] | null
+          is_active?: boolean | null
+          location?: string | null
+          price?: number | null
+          state?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["item_type"]
+          updated_at?: string
+          user_id?: string
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          avatar_url: string | null
+          city: string | null
+          created_at: string
+          id: string
+          is_verified: boolean | null
+          name: string
+          phone: string | null
+          rating: number | null
+          state: string | null
+          total_reviews: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          avatar_url?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_verified?: boolean | null
+          name: string
+          phone?: string | null
+          rating?: number | null
+          state?: string | null
+          total_reviews?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          avatar_url?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_verified?: boolean | null
+          name?: string
+          phone?: string | null
+          rating?: number | null
+          state?: string | null
+          total_reviews?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          item_id: string | null
+          rating: number
+          reviewed_user_id: string
+          reviewer_id: string
+          service_id: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          rating: number
+          reviewed_user_id: string
+          reviewer_id: string
+          service_id?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          rating?: number
+          reviewed_user_id?: string
+          reviewer_id?: string
+          service_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      services: {
+        Row: {
+          availability:
+            | Database["public"]["Enums"]["service_availability"]
+            | null
+          category_id: string
+          city: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          location: string | null
+          name: string
+          price_per_hour: number | null
+          state: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          availability?:
+            | Database["public"]["Enums"]["service_availability"]
+            | null
+          category_id: string
+          city?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          name: string
+          price_per_hour?: number | null
+          state?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          availability?:
+            | Database["public"]["Enums"]["service_availability"]
+            | null
+          category_id?: string
+          city?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          name?: string
+          price_per_hour?: number | null
+          state?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +269,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      item_condition:
+        | "novo"
+        | "como_novo"
+        | "bom"
+        | "regular"
+        | "precisa_reparo"
+      item_type: "doacao" | "venda"
+      service_availability: "disponivel" | "ocupado" | "offline"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +403,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      item_condition: ["novo", "como_novo", "bom", "regular", "precisa_reparo"],
+      item_type: ["doacao", "venda"],
+      service_availability: ["disponivel", "ocupado", "offline"],
+    },
   },
 } as const
