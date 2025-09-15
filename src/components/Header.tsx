@@ -65,6 +65,7 @@ const Header = ({ searchTerm, onSearchChange, onSearchSubmit }: HeaderProps) => 
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => navigate("/profile")}>Conta</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => signOut()}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Sair

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Package, Wrench, Heart, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,7 @@ interface NavigationProps {
 }
 
 const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
+  const navigate = useNavigate();
   return (
     <div className="w-full bg-background border-b">
       {/* Main Navigation */}
@@ -45,7 +47,11 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
           <span>Favoritos</span>
         </Button>
         
-        <Button size="sm" className="space-x-1 bg-gradient-to-r from-primary to-primary-glow">
+        <Button
+          size="sm"
+          className="space-x-1 bg-gradient-to-r from-primary to-primary-glow"
+          onClick={() => navigate("/AddItem")}
+        >
           <Plus className="h-3 w-3" />
           <span>Adicionar</span>
         </Button>
