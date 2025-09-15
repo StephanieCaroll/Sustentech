@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Package, Wrench, Heart, Plus } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Package, Wrench, Heart, Plus, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,8 @@ interface NavigationProps {
 
 const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  
   return (
     <div className="w-full bg-background border-b">
       {/* Main Navigation */}
@@ -42,7 +44,12 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
       {/* Quick Actions */}
       <div className="flex items-center justify-center pb-4 space-x-3">
-        <Button size="sm" variant="outline" className="space-x-1">
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="space-x-1"
+          onClick={() => navigate("/favorites")}
+        >
           <Heart className="h-3 w-3" />
           <span>Favoritos</span>
         </Button>
@@ -54,6 +61,16 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         >
           <Plus className="h-3 w-3" />
           <span>Adicionar</span>
+        </Button>
+        
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="space-x-1"
+          onClick={() => navigate("/profile")}
+        >
+          <User className="h-3 w-3" />
+          <span>Perfil</span>
         </Button>
       </div>
     </div>

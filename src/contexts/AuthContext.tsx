@@ -72,35 +72,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         title: "Login realizado",
         description: "Bem-vindo de volta!",
       });
-      // Após login, verifica/cria perfil se não existir
-      try {
-        const user = data.user;
-        if (user) {
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('user_id')
-            .eq('user_id', user.id)
-            .single();
-          if (!profile) {
-            const meta = user.user_metadata || {};
-            const profileData = {
-              user_id: user.id,
-              name: meta.name || '',
-              address: meta.address || '',
-              avatar_url: meta.avatar_url || '',
-              city: meta.city || '',
-              phone: meta.phone || '',
-              state: meta.state || ''
-            };
-            const { error: insertError } = await supabase.from('profiles').insert(profileData);
-            if (insertError) {
-              console.log('Erro ao criar perfil após login:', insertError);
-            }
-          }
-        }
-      } catch (e) {
-        console.log('Erro ao verificar/criar perfil após login:', e);
-      }
     }
     return { error };
   };
@@ -114,6 +85,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const redirectUrl = `${window.location.origin}/`;
     let error = null;
     let user = null;
+    
     try {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -126,18 +98,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
         }
       });
+      
       user = data.user ?? null;
+      
       if (signUpError) {
         error = signUpError;
         console.log('Erro no cadastro:', signUpError);
-      } else if (!user) {
-        // Usuário precisa confirmar o e-mail antes de autenticar
-        console.log('Usuário precisa confirmar o e-mail antes de criar perfil.');
       }
+      
+      // O trigger handle_new_user irá criar o perfil automaticamente
     } catch (e) {
       error = e;
       console.log('Erro inesperado no cadastro:', e);
     }
+    
     if (error) {
       toast({
         title: "Erro no cadastro",
@@ -149,9 +123,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } else {
       toast({
         title: "Conta criada",
-        description: "Sua conta foi criada com sucesso!",
+        description: "Sua conta foi criada com sucesso! Verifique seu email para confirmar.",
       });
     }
+    
     return { error, user };
   };
 
