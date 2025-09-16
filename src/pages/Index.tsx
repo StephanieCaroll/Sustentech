@@ -229,7 +229,7 @@ const Index = () => {
               )
             )}
 
-            {/* Community Section - Responsivo */}
+            {/* Community Section - Apenas uma seção, removida a duplicada */}
             <div className="mt-12 p-6 bg-gradient-to-r from-accent/20 to-primary/10 rounded-2xl border border-primary/20">
               <h2 className="text-xl font-semibold mb-2 text-center">Comunidade SustenTech</h2>
               <p className="text-center text-muted-foreground mb-4">

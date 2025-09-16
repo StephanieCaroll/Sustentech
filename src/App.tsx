@@ -8,7 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AddItem from "./pages/AddItem";
 import Profile from "./pages/Profile";
-import ProfileEdit from "./pages/ProfileEdit"; // Importe o componente ProfileEdit
+import ProfileEdit from "./pages/ProfileEdit";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,8 +25,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/AddItem" element={<AddItem />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/profile/edit" element={<ProfileEdit />} /> {/* Adicione esta linha */}
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="/profile/edit" element={<ProfileEdit />} /> 
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

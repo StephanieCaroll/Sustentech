@@ -15,12 +15,12 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   
   return (
     <div className="w-full bg-background border-b">
-      {/* Main Navigation */}
-      <div className="flex items-center justify-center p-4 space-x-4">
+
+      <div className="flex items-center justify-center p-4 space-x-2">
         <Button
           variant={activeTab === "items" ? "default" : "outline"}
           className={cn(
-            "flex-1 max-w-40 space-x-2 transition-all duration-300",
+            "flex-1 space-x-2 transition-all duration-300",
             activeTab === "items" && "bg-gradient-to-r from-primary to-primary-glow shadow-sustainable"
           )}
           onClick={() => onTabChange("items")}
@@ -32,7 +32,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         <Button
           variant={activeTab === "services" ? "default" : "outline"}
           className={cn(
-            "flex-1 max-w-40 space-x-2 transition-all duration-300",
+            "flex-1 space-x-2 transition-all duration-300",
             activeTab === "services" && "bg-gradient-to-r from-primary to-primary-glow shadow-sustainable"
           )}
           onClick={() => onTabChange("services")}
@@ -40,14 +40,11 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
           <Wrench className="h-4 w-4" />
           <span>Serviços</span>
         </Button>
-      </div>
 
-      {/* Quick Actions */}
-      <div className="flex items-center justify-center pb-4 space-x-3">
         <Button 
           size="sm" 
           variant="outline" 
-          className="space-x-1"
+          className="flex-1 space-x-1"
           onClick={() => navigate("/favorites")}
         >
           <Heart className="h-3 w-3" />
@@ -56,21 +53,11 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         
         <Button
           size="sm"
-          className="space-x-1 bg-gradient-to-r from-primary to-primary-glow"
+          className="flex-1 space-x-1 bg-gradient-to-r from-primary to-primary-glow"
           onClick={() => navigate("/AddItem")}
         >
           <Plus className="h-3 w-3" />
           <span>Adicionar</span>
-        </Button>
-        
-        <Button 
-          size="sm" 
-          variant="outline" 
-          className="space-x-1"
-          onClick={() => navigate("/profile")}
-        >
-          <User className="h-3 w-3" />
-          <span>Perfil</span>
         </Button>
       </div>
     </div>
