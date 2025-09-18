@@ -12,15 +12,15 @@ interface NavigationProps {
 const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   return (
     <div className="w-full bg-background border-b">
-
-      <div className="flex items-center justify-center p-4 space-x-2">
+    
+      <div className="grid grid-cols-2 md:flex items-center justify-center p-4 gap-4 md:space-x-2">
         <Button
           variant={activeTab === "items" ? "default" : "outline"}
           className={cn(
-            "flex-1 space-x-2 transition-all duration-300",
+            "space-x-2 transition-all duration-300 w-full",
             activeTab === "items" && "bg-gradient-to-r from-primary to-primary-glow shadow-sustainable"
           )}
           onClick={() => onTabChange("items")}
@@ -32,7 +32,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         <Button
           variant={activeTab === "services" ? "default" : "outline"}
           className={cn(
-            "flex-1 space-x-2 transition-all duration-300",
+            "space-x-2 transition-all duration-300 w-full",
             activeTab === "services" && "bg-gradient-to-r from-primary to-primary-glow shadow-sustainable"
           )}
           onClick={() => onTabChange("services")}
@@ -42,21 +42,19 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         </Button>
 
         <Button 
-          size="sm" 
-          variant="outline" 
-          className="flex-1 space-x-1"
+          variant="outline"
+          className="space-x-1 w-full"
           onClick={() => navigate("/favorites")}
         >
-          <Heart className="h-3 w-3" />
+          <Heart className="h-4 w-4" />
           <span>Favoritos</span>
         </Button>
         
         <Button
-          size="sm"
-          className="flex-1 space-x-1 bg-gradient-to-r from-primary to-primary-glow"
+          className="space-x-1 w-full bg-gradient-to-r from-primary to-primary-glow"
           onClick={() => navigate("/AddItem")}
         >
-          <Plus className="h-3 w-3" />
+          <Plus className="h-4 w-4" />
           <span>Adicionar</span>
         </Button>
       </div>

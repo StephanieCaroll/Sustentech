@@ -2,112 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    /* SustenTech Green Theme */
     --background: 120 20% 98%;
     --foreground: 140 85% 4%;
-
     --card: 0 0% 100%;
     --card-foreground: 140 85% 4%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 140 85% 4%;
-
-    /* Sustainable green primary */
     --primary: 142 71% 45%;
     --primary-foreground: 0 0% 100%;
     --primary-glow: 142 71% 55%;
-
-    /* Soft earth tones */
     --secondary: 25 20% 94%;
     --secondary-foreground: 142 71% 45%;
-
     --muted: 120 20% 96%;
     --muted-foreground: 140 15% 46%;
-
     --accent: 165 60% 92%;
     --accent-foreground: 142 71% 45%;
-
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 120 20% 90%;
     --input: 120 20% 94%;
     --ring: 142 71% 45%;
-
     --radius: 0.75rem;
-
-    /* Custom sustainable gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
     --gradient-sustainable: linear-gradient(135deg, hsl(142 71% 45%), hsl(165 60% 50%));
     --gradient-earth: linear-gradient(180deg, hsl(25 20% 94%), hsl(120 20% 98%));
-
-    /* Shadows with green glow */
     --shadow-sustainable: 0 4px 20px -4px hsl(var(--primary) / 0.15);
     --shadow-card: 0 2px 12px -2px hsl(140 15% 46% / 0.1);
-
-    /* Smooth transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    /* Dark sustainable theme */
     --background: 140 15% 6%;
     --foreground: 120 20% 98%;
-
     --card: 140 15% 8%;
     --card-foreground: 120 20% 98%;
-
     --popover: 140 15% 8%;
     --popover-foreground: 120 20% 98%;
-
     --primary: 142 71% 55%;
     --primary-foreground: 140 15% 6%;
     --primary-glow: 142 71% 65%;
-
     --secondary: 140 15% 12%;
     --secondary-foreground: 120 20% 98%;
-
     --muted: 140 15% 12%;
     --muted-foreground: 140 10% 65%;
-
     --accent: 140 15% 12%;
     --accent-foreground: 142 71% 55%;
-
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 140 15% 12%;
     --input: 140 15% 12%;
     --ring: 142 71% 55%;
-
-    /* Dark mode gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
     --gradient-sustainable: linear-gradient(135deg, hsl(142 71% 55%), hsl(165 60% 60%));
     --gradient-earth: linear-gradient(180deg, hsl(140 15% 12%), hsl(140 15% 6%));
-
-    /* Dark shadows */
     --shadow-sustainable: 0 4px 20px -4px hsl(var(--primary) / 0.25);
     --shadow-card: 0 2px 12px -2px hsl(0 0% 0% / 0.3);
     --sidebar-background: 240 5.9% 10%;
@@ -122,20 +79,28 @@ All colors MUST be HSL.
 }
 
 @layer base {
-  * {
-    @apply border-border;
+  html, body {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+    word-break: break-word;
+  }
+
+  img, video, iframe {
+    max-width: 100%;
+    height: auto;
+    display: block;
   }
 
   body {
     @apply bg-background text-foreground;
   }
 
-  /* Smooth scrolling */
-  html {
-    scroll-behavior: smooth;
-  }
-
-  /* Custom animations for sustainable app */
   .animate-fade-in {
     animation: fadeIn 0.5s ease-out;
   }
@@ -151,7 +116,6 @@ All colors MUST be HSL.
     }
   }
 
-  /* Line clamp utilities */
   .line-clamp-1 {
     overflow: hidden;
     display: -webkit-box;
@@ -171,5 +135,41 @@ All colors MUST be HSL.
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
+  }
+}
+
+@layer base {
+  html, body {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+    word-break: break-word;
+    max-width: 100%;
+  }
+
+  img, video, iframe {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .debug-outline * {
+    outline: 1px solid red;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    scrollbar-width: none; 
+    -ms-overflow-style: none; 
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; 
   }
 }

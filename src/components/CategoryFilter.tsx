@@ -1,11 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { 
-  Shirt, 
-  Sofa, 
-  Smartphone, 
-  Book, 
-  Utensils, 
+import {
+  Shirt,
+  Sofa,
+  Smartphone,
+  Book,
+  Utensils,
   Gamepad2,
   Hammer,
   Scissors,
@@ -49,29 +48,37 @@ const serviceCategories = [
   { id: "geral", name: "Conserto Geral", icon: Wrench },
 ];
 
-const CategoryFilter = ({ type, activeCategory, onCategoryChange, categories: dbCategories }: CategoryFilterProps) => {
-  // Usar categorias do banco ou fallback para as estáticas
+const CategoryFilter = ({
+  type,
+  activeCategory,
+  onCategoryChange,
+  categories: dbCategories
+}: CategoryFilterProps) => {
   const staticCategories = type === "items" ? itemCategories : serviceCategories;
-  const categories = dbCategories.length > 0 
-    ? [{ id: "all", name: "Todos", icon: null, type: "both" }, ...dbCategories.map(cat => ({ ...cat, icon: null }))]
-    : staticCategories;
+  const categories =
+    dbCategories.length > 0
+      ? [
+          { id: "all", name: "Todos", icon: null, type: "both" },
+          ...dbCategories.map((cat) => ({ ...cat, icon: null }))
+        ]
+      : staticCategories;
 
   return (
     <div className="w-full bg-background py-3 border-b">
-      <ScrollArea className="w-full">
+      <div className="w-full overflow-x-auto scrollbar-hide">
         <div className="flex space-x-2 px-4">
           {categories.map((category) => {
             const IconComponent = category.icon;
             const isActive = activeCategory === category.id;
-            
+
             return (
               <Button
                 key={category.id}
                 variant={isActive ? "default" : "outline"}
                 size="sm"
                 className={`shrink-0 space-x-2 transition-all duration-200 ${
-                  isActive 
-                    ? "bg-gradient-to-r from-primary to-primary-glow shadow-sustainable" 
+                  isActive
+                    ? "bg-gradient-to-r from-primary to-primary-glow shadow-sustainable"
                     : "hover:border-primary/50 hover:text-primary"
                 }`}
                 onClick={() => onCategoryChange(category.id)}
@@ -82,8 +89,7 @@ const CategoryFilter = ({ type, activeCategory, onCategoryChange, categories: db
             );
           })}
         </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </div>
     </div>
   );
 };

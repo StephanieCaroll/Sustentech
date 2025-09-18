@@ -27,7 +27,7 @@ const ItemCard = ({ item, isLiked = false }: ItemCardProps) => {
   };
 
   return (
-    <Card className="overflow-hidden transition-all duration-300 hover:shadow-card hover:-translate-y-1 group cursor-pointer">
+    <Card className="w-full max-w-full overflow-hidden transition-all duration-300 hover:shadow-card hover:-translate-y-1 group cursor-pointer">
       <div className="relative">
         <div className="aspect-square bg-muted/30 overflow-hidden">
           <img 
@@ -60,8 +60,8 @@ const ItemCard = ({ item, isLiked = false }: ItemCardProps) => {
       </div>
 
       <CardContent className="p-4">
-        <div className="space-y-2">
-          <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
+        <div className="space-y-2 break-words">
+          <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors break-words">
             {item.title}
           </h3>
           
@@ -73,7 +73,7 @@ const ItemCard = ({ item, isLiked = false }: ItemCardProps) => {
             </div>
           </div>
 
-          <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+          <div className="flex items-center space-x-1 text-xs text-muted-foreground break-words">
             <MapPin className="h-3 w-3" />
             <span>{item.city || item.location || 'Localização'}</span>
           </div>

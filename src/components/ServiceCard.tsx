@@ -25,21 +25,21 @@ const ServiceCard = ({ service }: ServiceCardProps) => {
   };
 
   return (
-    <Card className="transition-all duration-300 hover:shadow-card hover:-translate-y-1 group cursor-pointer">
+    <Card className="w-full max-w-full overflow-hidden transition-all duration-300 hover:shadow-card hover:-translate-y-1 group cursor-pointer">
       <CardContent className="p-4">
-        <div className="space-y-3">
+        <div className="space-y-3 break-words">
           {/* Header */}
           <div className="flex items-start space-x-3">
-            <Avatar className="h-12 w-12">
+            <Avatar className="h-12 w-12 shrink-0">
               <AvatarImage src={service.profiles?.avatar_url} alt={service.profiles?.name} />
               <AvatarFallback className="bg-primary/10 text-primary">
-                {service.profiles?.name.slice(0, 2).toUpperCase() || 'US'}
+                {service.profiles?.name?.slice(0, 2).toUpperCase() || 'US'}
               </AvatarFallback>
             </Avatar>
             
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2">
-                <h3 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
+                <h3 className="font-semibold text-sm truncate group-hover:text-primary transition-colors break-words">
                   {service.profiles?.name || 'Usuário'}
                 </h3>
                 {service.profiles?.is_verified && (
@@ -47,7 +47,7 @@ const ServiceCard = ({ service }: ServiceCardProps) => {
                 )}
               </div>
               
-              <p className="text-sm text-muted-foreground">{service.name}</p>
+              <p className="text-sm text-muted-foreground break-words">{service.name}</p>
               
               <div className="flex items-center space-x-4 mt-1">
                 <div className="flex items-center space-x-1 text-xs">
@@ -68,12 +68,12 @@ const ServiceCard = ({ service }: ServiceCardProps) => {
           </Badge>
 
           {/* Description */}
-          <p className="text-sm text-muted-foreground line-clamp-2">
+          <p className="text-sm text-muted-foreground line-clamp-2 break-words">
             {service.description || 'Sem descrição disponível'}
           </p>
 
           {/* Info */}
-          <div className="space-y-2 text-xs text-muted-foreground">
+          <div className="space-y-2 text-xs text-muted-foreground break-words">
             <div className="flex items-center space-x-1">
               <MapPin className="h-3 w-3" />
               <span>{service.city || service.location || 'Localização'}</span>
