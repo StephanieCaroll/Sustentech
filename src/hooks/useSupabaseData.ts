@@ -74,7 +74,6 @@ export const useSupabaseData = () => {
       .from('items')
       .select(`
         *,
-        profiles(name, avatar_url, rating),
         categories(name, icon)
       `)
       .eq('is_active', true);
@@ -94,6 +93,23 @@ export const useSupabaseData = () => {
       return [];
     }
 
+    // Buscar informações de perfis separadamente se necessário
+    if (data && data.length > 0) {
+      const userIds = data.map(item => item.user_id).filter(Boolean);
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, name, avatar_url, rating')
+          .in('user_id', userIds);
+
+        // Combinar dados manualmente
+        return data.map(item => ({
+          ...item,
+          profiles: profilesData?.find(profile => profile.user_id === item.user_id) || null
+        }));
+      }
+    }
+
     return data || [];
   };
 
@@ -102,9 +118,8 @@ export const useSupabaseData = () => {
       .from('services')
       .select(`
         *,
-        profiles(name, avatar_url, rating, total_reviews, is_verified),
         categories(name, icon)
-      `)
+      `) 
       .eq('is_active', true);
 
     if (searchTerm) {
@@ -120,6 +135,23 @@ export const useSupabaseData = () => {
     if (error) {
       console.error('Erro ao buscar serviços:', error);
       return [];
+    }
+
+    // Buscar informações de perfis separadamente se necessário
+    if (data && data.length > 0) {
+      const userIds = data.map(service => service.user_id).filter(Boolean);
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, name, avatar_url, rating, total_reviews, is_verified')
+          .in('user_id', userIds);
+
+        // Combinar dados manualmente
+        return data.map(service => ({
+          ...service,
+          profiles: profilesData?.find(profile => profile.user_id === service.user_id) || null
+        }));
+      }
     }
 
     return data || [];
