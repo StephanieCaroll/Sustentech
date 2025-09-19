@@ -7,8 +7,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { X, Upload } from "lucide-react";
 
-import ServiceCard from "@/components/ServiceCard";
-
 export default function AddService() {
   const [form, setForm] = useState({
     name: "",
@@ -225,210 +223,206 @@ export default function AddService() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background p-4 py-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background p-4 py-8 flex items-center justify-center">
+      <div className="max-w-2xl w-full mx-auto">
         <h1 className="text-2xl md:text-3xl font-bold mb-6 text-center text-primary">Adicionar Serviço</h1>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Formulário */}
-          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-primary/10">
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-primary/10">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block mb-2 font-semibold text-primary">Nome do Serviço *</label>
+              <Input 
+                name="name" 
+                value={form.name} 
+                onChange={handleChange} 
+                required 
+                className="bg-muted/30" 
+                placeholder="Ex: Reparo de bicicletas"
+              />
+            </div>
+            
+            <div>
+              <label className="block mb-2 font-semibold text-primary">Descrição *</label>
+              <Textarea 
+                name="description" 
+                value={form.description} 
+                onChange={handleChange} 
+                required 
+                className="bg-muted/30 min-h-[100px]" 
+                placeholder="Descreva o serviço em detalhes..."
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block mb-2 font-semibold text-primary">Nome do Serviço *</label>
+                <label className="block mb-2 font-semibold text-primary">Cidade *</label>
                 <Input 
-                  name="name" 
-                  value={form.name} 
+                  name="city" 
+                  value={form.city} 
                   onChange={handleChange} 
                   required 
                   className="bg-muted/30" 
-                  placeholder="Ex: Reparo de bicicletas"
+                  placeholder="São Paulo"
                 />
               </div>
-              
               <div>
-                <label className="block mb-2 font-semibold text-primary">Descrição *</label>
-                <Textarea 
-                  name="description" 
-                  value={form.description} 
+                <label className="block mb-2 font-semibold text-primary">Estado *</label>
+                <Input 
+                  name="state" 
+                  value={form.state} 
                   onChange={handleChange} 
                   required 
-                  className="bg-muted/30 min-h-[100px]" 
-                  placeholder="Descreva o serviço em detalhes..."
+                  className="bg-muted/30" 
+                  placeholder="SP"
+                  maxLength={2}
                 />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block mb-2 font-semibold text-primary">Cidade *</label>
-                  <Input 
-                    name="city" 
-                    value={form.city} 
-                    onChange={handleChange} 
-                    required 
-                    className="bg-muted/30" 
-                    placeholder="São Paulo"
-                  />
-                </div>
-                <div>
-                  <label className="block mb-2 font-semibold text-primary">Estado *</label>
-                  <Input 
-                    name="state" 
-                    value={form.state} 
-                    onChange={handleChange} 
-                    required 
-                    className="bg-muted/30" 
-                    placeholder="SP"
-                    maxLength={2}
-                  />
-                </div>
+            </div>
+            
+            <div>
+              <label className="block mb-2 font-semibold text-primary">Categoria *</label>
+              <select
+                name="category_id"
+                value={form.category_id}
+                onChange={handleChange}
+                required
+                className="w-full border rounded px-3 py-2 bg-muted/30"
+              >
+                <option value="">Selecione uma categoria</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={form.category_id === "d5a2a7b0-7ac1-4dfe-9126-62391b076ef6" ? "block" : "hidden"}>
+              <label className="block mb-2 font-semibold text-primary">
+                Especifique a categoria *
+              </label>
+              <Input 
+                name="custom_category" 
+                value={form.custom_category} 
+                onChange={handleChange} 
+                required={form.category_id === "d5a2a7b0-7ac1-4dfe-9126-62391b076ef6"}
+                className="bg-muted/30" 
+                placeholder="Digite o nome da categoria personalizada"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Esta informação será adicionada à descrição do serviço.
+              </p>
+            </div>
+            
+            <div>
+              <label className="block mb-2 font-semibold text-primary">Disponibilidade *</label>
+              <select
+                name="availability"
+                value={form.availability}
+                onChange={handleChange}
+                required
+                className="w-full border rounded px-3 py-2 bg-muted/30"
+              >
+                <option value="disponivel">Disponível</option>
+                <option value="indisponivel">Indisponível</option>
+                <option value="sob_consulta">Sob consulta</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block mb-2 font-semibold text-primary">Preço por Hora (R$)</label>
+              <Input 
+                type="number" 
+                name="price_per_hour" 
+                value={form.price_per_hour} 
+                onChange={handleChange} 
+                className="bg-muted/30" 
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Deixe em 0 para serviços gratuitos ou de doação
+              </p>
+            </div>
+
+            <div>
+              <label className="block mb-2 font-semibold text-primary">Imagens do Serviço</label>
+              <div 
+                className="border-2 border-dashed border-primary/30 rounded-lg p-6 text-center cursor-pointer hover:bg-primary/5 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                />
+                <Upload className="mx-auto h-12 w-12 text-primary/50 mb-2" />
+                <p className="text-primary/70">Clique para adicionar imagens</p>
+                <p className="text-sm text-muted-foreground mt-1">Máximo 5 imagens, 5MB cada</p>
               </div>
-              
+            </div>
+
+            {imagePreviews.length > 0 && (
               <div>
-                <label className="block mb-2 font-semibold text-primary">Categoria *</label>
-                <select
-                  name="category_id"
-                  value={form.category_id}
-                  onChange={handleChange}
-                  required
-                  className="w-full border rounded px-3 py-2 bg-muted/30"
-                >
-                  <option value="">Selecione uma categoria</option>
-                  {categories.map(category => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
+                <h3 className="font-medium text-primary mb-2">Pré-visualização das imagens:</h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {imagePreviews.map((preview, index) => (
+                    <div key={index} className="relative group">
+                      <img 
+                        src={preview} 
+                        alt={`Preview ${index + 1}`}
+                        className="h-24 w-full object-cover rounded-md"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
                   ))}
-                </select>
+                </div>
               </div>
+            )}
 
-              <div className={form.category_id === "d5a2a7b0-7ac1-4dfe-9126-62391b076ef6" ? "block" : "hidden"}>
-                <label className="block mb-2 font-semibold text-primary">
-                  Especifique a categoria *
-                </label>
-                <Input 
-                  name="custom_category" 
-                  value={form.custom_category} 
-                  onChange={handleChange} 
-                  required={form.category_id === "d5a2a7b0-7ac1-4dfe-9126-62391b076ef6"}
-                  className="bg-muted/30" 
-                  placeholder="Digite o nome da categoria personalizada"
-                />
-                <p className="text-sm text-muted-foreground mt-1">
-                  Esta informação será adicionada à descrição do serviço.
-                </p>
-              </div>
-              
-              <div>
-                <label className="block mb-2 font-semibold text-primary">Disponibilidade *</label>
-                <select
-                  name="availability"
-                  value={form.availability}
-                  onChange={handleChange}
-                  required
-                  className="w-full border rounded px-3 py-2 bg-muted/30"
-                >
-                  <option value="disponivel">Disponível</option>
-                  <option value="indisponivel">Indisponível</option>
-                  <option value="sob_consulta">Sob consulta</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block mb-2 font-semibold text-primary">Preço por Hora (R$)</label>
-                <Input 
-                  type="number" 
-                  name="price_per_hour" 
-                  value={form.price_per_hour} 
-                  onChange={handleChange} 
-                  className="bg-muted/30" 
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                />
-                <p className="text-sm text-muted-foreground mt-1">
-                  Deixe em 0 para serviços gratuitos ou de doação
-                </p>
-              </div>
-
-              <div>
-                <label className="block mb-2 font-semibold text-primary">Imagens do Serviço</label>
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div 
-                  className="border-2 border-dashed border-primary/30 rounded-lg p-6 text-center cursor-pointer hover:bg-primary/5 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleImageUpload}
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                  />
-                  <Upload className="mx-auto h-12 w-12 text-primary/50 mb-2" />
-                  <p className="text-primary/70">Clique para adicionar imagens</p>
-                  <p className="text-sm text-muted-foreground mt-1">Máximo 5 imagens, 5MB cada</p>
-                </div>
+                  className="bg-primary h-2.5 rounded-full" 
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+                <p className="text-sm text-center mt-1">Enviando imagens: {uploadProgress}%</p>
               </div>
-
-              {imagePreviews.length > 0 && (
-                <div>
-                  <h3 className="font-medium text-primary mb-2">Pré-visualização das imagens:</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {imagePreviews.map((preview, index) => (
-                      <div key={index} className="relative group">
-                        <img 
-                          src={preview} 
-                          alt={`Preview ${index + 1}`}
-                          className="h-24 w-full object-cover rounded-md"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {uploadProgress > 0 && uploadProgress < 100 && (
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-primary h-2.5 rounded-full" 
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                  <p className="text-sm text-center mt-1">Enviando imagens: {uploadProgress}%</p>
-                </div>
-              )}
-              
-              {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                  <p className="text-red-600 text-sm">{error}</p>
-                </div>
-              )}
-              
-              <Button 
-                type="submit" 
-                className="w-full mt-2 bg-gradient-to-r from-primary to-primary/80 text-lg py-3 rounded-xl hover:from-primary/90 hover:to-primary transition-all" 
-                disabled={loading}
-              >
-                {loading ? "Adicionando..." : "Adicionar Serviço"}
-              </Button>
-              
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full mt-2 text-lg py-3 rounded-xl border-primary/40 hover:bg-primary/10 transition-colors"
-                onClick={() => navigate(-1)}
-              >
-                Voltar
-              </Button>
-            </form>
-          </div>
-
+            )}
+            
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-red-600 text-sm">{error}</p>
+              </div>
+            )}
+            
+            <Button 
+              type="submit" 
+              className="w-full mt-2 bg-gradient-to-r from-primary to-primary/80 text-lg py-3 rounded-xl hover:from-primary/90 hover:to-primary transition-all" 
+              disabled={loading}
+            >
+              {loading ? "Adicionando..." : "Adicionar Serviço"}
+            </Button>
+            
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full mt-2 text-lg py-3 rounded-xl border-primary/40 hover:bg-primary/10 transition-colors"
+              onClick={() => navigate(-1)}
+            >
+              Voltar
+            </Button>
+          </form>
         </div>
       </div>
 

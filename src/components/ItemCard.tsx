@@ -17,9 +17,10 @@ interface ItemCardProps {
   onUpdate?: () => void;
   onStartConversation?: (sellerId: string, item: Item) => void;
   onCartUpdate?: () => void;
+  onFavoriteUpdate?: () => void; 
 }
 
-const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCartUpdate }: ItemCardProps) => {
+const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCartUpdate, onFavoriteUpdate }: ItemCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
@@ -32,6 +33,7 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
   const [isSaving, setIsSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>(item.image_urls || []);
+  const [liked, setLiked] = useState(isLiked); 
   const cardRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -41,28 +43,32 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
   const MAX_IMAGES = 4;
 
   useEffect(() => {
-  if (isExpanded) {
-    const scrollY = window.scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
-  } else {
-    const scrollY = document.body.style.top;
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
-    window.scrollTo(0, parseInt(scrollY || '0') * -1);
-  }
+    setLiked(isLiked);
+  }, [isLiked]);
 
-  return () => {
+  useEffect(() => {
     if (isExpanded) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+    } else {
       const scrollY = document.body.style.top;
       document.body.style.position = '';
       document.body.style.top = '';
       document.body.style.width = '';
       window.scrollTo(0, parseInt(scrollY || '0') * -1);
     }
-  };
+
+    return () => {
+      if (isExpanded) {
+        const scrollY = document.body.style.top;
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
+    };
   }, [isExpanded]);
 
   useEffect(() => {
@@ -297,8 +303,64 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
     }
   };
 
-  const hasMultipleImages = imageUrls && imageUrls.length > 1;
-  const currentImage = imageUrls?.[currentImageIndex] || "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400";
+  const toggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!user) {
+      toast({
+        title: "Atenção",
+        description: "Você precisa estar logado para favoritar itens",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      if (liked) {
+        // Remover dos favoritos
+        const { error } = await supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('item_id', item.id);
+
+        if (error) throw error;
+        
+        setLiked(false);
+        toast({
+          title: "Removido",
+          description: "Item removido dos favoritos",
+        });
+      } else {
+        // Adicionar aos favoritos
+        const { error } = await supabase
+          .from('favorites')
+          .insert({
+            user_id: user.id,
+            item_id: item.id,
+          });
+
+        if (error) throw error;
+        
+        setLiked(true);
+        toast({
+          title: "Adicionado",
+          description: "Item adicionado aos favoritos",
+        });
+      }
+
+      if (onFavoriteUpdate) {
+        onFavoriteUpdate();
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar favoritos:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar os favoritos",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -322,7 +384,7 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
     }
 
     try {
-      // Verifica se o item já está no carrinho
+
       const { data: existingItem } = await supabase
         .from('cart_items')
         .select('id, quantity')
@@ -331,7 +393,7 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
         .single();
 
       if (existingItem) {
-        // Atualiza a quantidade se já existir
+
         const { error } = await supabase
           .from('cart_items')
           .update({ quantity: existingItem.quantity + 1 })
@@ -344,7 +406,7 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
           description: "Quantidade atualizada no carrinho"
         });
       } else {
-        // Adiciona novo item ao carrinho
+
         const { error } = await supabase
           .from('cart_items')
           .insert({
@@ -360,8 +422,7 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
           description: "Item adicionado ao carrinho"
         });
       }
-      
-      // Notifica o componente pai sobre a atualização do carrinho
+
       if (onCartUpdate) {
         onCartUpdate();
       }
@@ -374,6 +435,9 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
       });
     }
   };
+
+  const hasMultipleImages = imageUrls && imageUrls.length > 1;
+  const currentImage = imageUrls?.[currentImageIndex] || "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400";
 
   return (
     <div className="relative">
@@ -441,13 +505,11 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
                 size="icon"
                 variant="ghost"
                 className={`h-8 w-8 rounded-full bg-background/80 backdrop-blur transition-colors ${
-                  isLiked ? "text-red-500" : "text-muted-foreground hover:text-red-500"
+                  liked ? "text-red-500" : "text-muted-foreground hover:text-red-500"
                 }`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
+                onClick={toggleFavorite}
               >
-                <Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
+                <Heart className={`h-4 w-4 ${liked ? "fill-current" : ""}`} />
               </Button>
             </div>
 
@@ -506,7 +568,7 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
             {!isExpanded && (
               <>
                 <p className="text-sm text-muted-foreground line-clamp-2 break-words">
-                  {item.description || 'Sem descrição disponível'}
+                    {item.description || 'Sem descrição disponível'}
                 </p>
 
                 <div className="space-y-2 text-xs text-muted-foreground break-words">
@@ -609,9 +671,21 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
               </div>
               
               <div className="md:col-span-1 space-y-4">
-                <h2 className="text-2xl md:text-3xl font-bold text-green-600 break-words">
-                  {item.title}
-                </h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl md:text-3xl font-bold text-green-600 break-words">
+                    {item.title}
+                  </h2>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className={`h-8 w-8 rounded-full transition-colors ${
+                      liked ? "text-red-500" : "text-muted-foreground hover:text-red-500"
+                    }`}
+                    onClick={toggleFavorite}
+                  >
+                    <Heart className={`h-5 w-5 ${liked ? "fill-current" : ""}`} />
+                  </Button>
+                </div>
                
                 <div className="flex items-center justify-between border-t pt-4">
                   <span className="text-2xl md:text-3xl font-bold text-primary">

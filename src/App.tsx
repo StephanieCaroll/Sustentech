@@ -11,7 +11,7 @@ import AddService from "./pages/AddService";
 import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
 import NotFound from "./pages/NotFound";
-
+import Favorites from "./pages/Favorites";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -28,6 +28,7 @@ const App = () => (
             <Route path="/AddService" element={<AddService />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/edit" element={<ProfileEdit />} /> 
+            <Route path="/favorites" element={<Favorites />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
