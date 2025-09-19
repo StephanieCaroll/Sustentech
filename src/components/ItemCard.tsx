@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Heart, MapPin, Star, ArrowLeft, ChevronLeft, ChevronRight, Edit, Save, Plus, X } from "lucide-react";
+import { Heart, MapPin, Star, ArrowLeft, ChevronLeft, ChevronRight, Edit, Save, Plus, X, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,9 +15,10 @@ interface ItemCardProps {
   isLiked?: boolean;
   onUpdate?: () => void;
   onStartConversation?: (sellerId: string, item: Item) => void;
+  onCartUpdate?: () => void;
 }
 
-const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation }: ItemCardProps) => {
+const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCartUpdate }: ItemCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
@@ -285,6 +286,81 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation }: Item
   const hasMultipleImages = imageUrls && imageUrls.length > 1;
   const currentImage = imageUrls?.[currentImageIndex] || "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400";
 
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!user) {
+      toast({
+        title: "Atenção",
+        description: "Você precisa estar logado para adicionar itens ao carrinho",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (isOwner) {
+      toast({
+        title: "Atenção",
+        description: "Você não pode adicionar seu próprio item ao carrinho",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Verifica se o item já está no carrinho
+      const { data: existingItem } = await supabase
+        .from('cart_items')
+        .select('id, quantity')
+        .eq('user_id', user.id)
+        .eq('item_id', item.id)
+        .single();
+
+      if (existingItem) {
+        // Atualiza a quantidade se já existir
+        const { error } = await supabase
+          .from('cart_items')
+          .update({ quantity: existingItem.quantity + 1 })
+          .eq('id', existingItem.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Sucesso",
+          description: "Quantidade atualizada no carrinho"
+        });
+      } else {
+        // Adiciona novo item ao carrinho
+        const { error } = await supabase
+          .from('cart_items')
+          .insert({
+            user_id: user.id,
+            item_id: item.id,
+            quantity: 1
+          });
+
+        if (error) throw error;
+
+        toast({
+          title: "Sucesso",
+          description: "Item adicionado ao carrinho"
+        });
+      }
+      
+      // Notifica o componente pai sobre a atualização do carrinho
+      if (onCartUpdate) {
+        onCartUpdate();
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar ao carrinho:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível adicionar o item ao carrinho",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="relative">
       <Card 
@@ -360,7 +436,7 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation }: Item
 
           <Badge 
             variant="secondary" 
-            className="absolute top-2 left-2 bg-primary/10 text-primary border-primary/20 z-10"
+            className="absolute top-2 left-2 bg-white text-primary border-primary/20 z-10"
           >
             {item.categories?.name || 'Categoria'}
           </Badge>
@@ -593,7 +669,8 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation }: Item
                 >
                   Comprar Agora
                 </Button>
-                <Button variant="outline" className="flex-1 py-3">
+                <Button variant="outline" className="flex-1 py-3" onClick={handleAddToCart}>
+                  <ShoppingCart className="h-4 w-4 mr-2" />
                   Adicionar ao Carrinho
                 </Button>
               </div>

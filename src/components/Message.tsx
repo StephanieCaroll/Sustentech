@@ -14,6 +14,7 @@ interface Message {
   receiver_id: string;
   created_at: string;
   read: boolean;
+  conversation_id: string;
 }
 
 interface Profile {
@@ -54,6 +55,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [creatingConversation, setCreatingConversation] = useState(false);
+  const [initialMessageSent, setInitialMessageSent] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Buscar perfil de um usuário
@@ -226,8 +228,9 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
   };
 
   // Enviar mensagem
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !activeConversation || !currentUser) return;
+  const sendMessage = async (content?: string) => {
+    const messageContent = content || newMessage.trim();
+    if (!messageContent || !activeConversation || !currentUser) return;
     
     try {
       setIsSending(true);
@@ -242,7 +245,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       const { data: messageData, error: messageError } = await supabase
         .from('messages')
         .insert({
-          content: newMessage.trim(),
+          content: messageContent,
           sender_id: currentUser.id,
           receiver_id: receiverId,
           conversation_id: activeConversation,
@@ -261,6 +264,11 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       
       setNewMessage("");
       setMessages(prev => [...prev, messageData]);
+      
+      // Se era a mensagem inicial, marcar como enviada
+      if (content) {
+        setInitialMessageSent(true);
+      }
       
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
@@ -291,9 +299,9 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
         await fetchMessages(conversationId);
         
         // Enviar mensagem inicial sobre o item
-        if (item) {
+        if (item && !initialMessageSent) {
           const initialMessage = `Olá! Tenho interesse no item "${item.title}" que você está vendendo por R$ ${item.price?.toFixed(2) || '0,00'}. Podemos conversar sobre isso?`;
-          setNewMessage(initialMessage);
+          await sendMessage(initialMessage);
         }
       }
     } catch (error) {
@@ -347,14 +355,24 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Limpar estado quando fechar
+  useEffect(() => {
+    if (!isOpen) {
+      setActiveConversation(null);
+      setMessages([]);
+      setNewMessage("");
+      setInitialMessageSent(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
-      <div className="fixed right-4 top-20 w-80 h-96 bg-background border rounded-lg shadow-lg flex flex-col">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+      <div className="bg-background border rounded-lg shadow-lg flex flex-col w-full max-w-4xl h-full max-h-[80vh]">
         {/* Cabeçalho */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold">Mensagens</h3>
+          <h3 className="font-semibold text-lg">Mensagens</h3>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -384,7 +402,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={conversation.participant.avatar_url} />
                       <AvatarFallback>
-                        {conversation.participant.name?.[0] || 'U'}
+                        {conversation.participant.name?.[0]?.toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
@@ -410,33 +428,39 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
           <div className="w-2/3 flex flex-col">
             {activeConversation ? (
               <>
-                <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                  {messages.map(message => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.sender_id === currentUser?.id ? "justify-end" : "justify-start"}`}
-                    >
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {messages.length === 0 ? (
+                    <p className="text-center text-muted-foreground text-sm py-8">
+                      Nenhuma mensagem ainda. Envie uma mensagem para iniciar a conversa.
+                    </p>
+                  ) : (
+                    messages.map(message => (
                       <div
-                        className={`max-w-xs p-2 rounded-lg ${
-                          message.sender_id === currentUser?.id
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
-                        }`}
+                        key={message.id}
+                        className={`flex ${message.sender_id === currentUser?.id ? "justify-end" : "justify-start"}`}
                       >
-                        <p className="text-sm">{message.content}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {new Date(message.created_at).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
+                        <div
+                          className={`max-w-xs p-3 rounded-lg ${
+                            message.sender_id === currentUser?.id
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted"
+                          }`}
+                        >
+                          <p className="text-sm">{message.content}</p>
+                          <p className="text-xs opacity-70 mt-1">
+                            {new Date(message.created_at).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="p-2 border-t">
+                <div className="p-3 border-t">
                   <div className="flex gap-2">
                     <Input
                       placeholder="Digite uma mensagem..."
@@ -452,7 +476,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
                     />
                     <Button
                       size="icon"
-                      onClick={sendMessage}
+                      onClick={() => sendMessage()}
                       disabled={!newMessage.trim() || isSending || creatingConversation}
                     >
                       {isSending || creatingConversation ? (
@@ -467,7 +491,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
             ) : (
               <div className="flex-1 flex items-center justify-center">
                 <p className="text-muted-foreground text-sm">
-                  {creatingConversation ? "Iniciando conversa..." : "Selecione uma conversa"}
+                  {creatingConversation ? "Iniciando conversa..." : "Selecione uma conversa para começar"}
                 </p>
               </div>
             )}
