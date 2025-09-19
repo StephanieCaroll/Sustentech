@@ -8,14 +8,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/use-toast";
 
 interface ItemCardProps {
   item: Item;
   isLiked?: boolean;
   onUpdate?: () => void;
+  onStartConversation?: (sellerId: string, item: Item) => void;
 }
 
-const ItemCard = ({ item, isLiked = false, onUpdate }: ItemCardProps) => {
+const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation }: ItemCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
@@ -31,6 +33,7 @@ const ItemCard = ({ item, isLiked = false, onUpdate }: ItemCardProps) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const isOwner = user?.id === item.user_id;
   const MAX_IMAGES = 4;
@@ -181,9 +184,8 @@ const ItemCard = ({ item, isLiked = false, onUpdate }: ItemCardProps) => {
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `${item.id}/${fileName}`;
 
-      // USANDO O BUCKET "items" CORRETO
       const { error: uploadError } = await supabase.storage
-        .from('items')  // Bucket correto: items
+        .from('items')  
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -194,9 +196,8 @@ const ItemCard = ({ item, isLiked = false, onUpdate }: ItemCardProps) => {
         throw uploadError;
       }
 
-      // Obter a URL pública da imagem do bucket "items"
       const { data: { publicUrl } } = supabase.storage
-        .from('items')  // Bucket correto: items
+        .from('items')  
         .getPublicUrl(filePath);
 
       setImageUrls(prev => [...prev, publicUrl]);
@@ -221,7 +222,6 @@ const ItemCard = ({ item, isLiked = false, onUpdate }: ItemCardProps) => {
     try {
       const urlToRemove = imageUrls[index];
       
-      // Extrair o caminho do arquivo da URL do bucket "items"
       const urlObj = new URL(urlToRemove);
       const pathParts = urlObj.pathname.split('/');
       const bucketIndex = pathParts.indexOf('items');
@@ -230,12 +230,12 @@ const ItemCard = ({ item, isLiked = false, onUpdate }: ItemCardProps) => {
         throw new Error('URL da imagem não contém o bucket esperado');
       }
       
-      // Reconstruir o caminho do arquivo (remover o bucket da URL)
+
       const filePath = pathParts.slice(bucketIndex + 1).join('/');
 
-      // Remover a imagem do bucket "items"
+    
       const { error: removeError } = await supabase.storage
-        .from('items')  // Bucket correto: items
+        .from('items') 
         .remove([filePath]);
 
       if (removeError) {
@@ -253,6 +253,32 @@ const ItemCard = ({ item, isLiked = false, onUpdate }: ItemCardProps) => {
     } catch (error) {
       console.error('Erro ao remover imagem:', error);
       alert('Erro ao remover imagem. Tente novamente.');
+    }
+  };
+
+  const handleBuyNow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!user) {
+      toast({
+        title: "Atenção",
+        description: "Você precisa estar logado para comprar itens",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (isOwner) {
+      toast({
+        title: "Atenção",
+        description: "Você não pode comprar seu próprio item",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (onStartConversation) {
+      onStartConversation(item.user_id, item);
     }
   };
 
@@ -561,7 +587,10 @@ const ItemCard = ({ item, isLiked = false, onUpdate }: ItemCardProps) => {
               </div>
               
               <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
-                <Button className="bg-green-600 hover:bg-green-700 flex-1 py-3 text-base">
+                <Button 
+                  className="bg-green-600 hover:bg-green-700 flex-1 py-3 text-base"
+                  onClick={handleBuyNow}
+                >
                   Comprar Agora
                 </Button>
                 <Button variant="outline" className="flex-1 py-3">
