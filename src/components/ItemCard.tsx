@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Heart, MapPin, Star, ArrowLeft, ChevronLeft, ChevronRight, Edit, Save, Plus, X, ShoppingCart } from "lucide-react";
+import { Heart, MapPin, Star, ArrowLeft, ChevronLeft, ChevronRight, Edit, Save, Plus, X, ShoppingCart, CheckCircle, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Item } from "@/hooks/useSupabaseData";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,15 +41,28 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
   const MAX_IMAGES = 4;
 
   useEffect(() => {
-    if (isExpanded) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+  if (isExpanded) {
+    const scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+  } else {
+    const scrollY = document.body.style.top;
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    window.scrollTo(0, parseInt(scrollY || '0') * -1);
+  }
 
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
+  return () => {
+    if (isExpanded) {
+      const scrollY = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      window.scrollTo(0, parseInt(scrollY || '0') * -1);
+    }
+  };
   }, [isExpanded]);
 
   useEffect(() => {
@@ -365,328 +379,442 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
     <div className="relative">
       <Card 
         ref={cardRef}
-        className={`w-full max-w-full overflow-hidden transition-all duration-300 hover:shadow-card hover:-translate-y-1 group cursor-pointer ${
+        className={`w-full max-w-full overflow-hidden group cursor-pointer ${
           isExpanded 
-            ? "fixed inset-0 md:inset-10 lg:inset-20 z-50 bg-background rounded-none md:rounded-lg shadow-xl overflow-y-auto max-h-screen" 
-            : ""
+            ? "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-background rounded-lg shadow-xl overflow-y-auto max-h-[90vh] w-[95vw] max-w-4xl" 
+            : "hover:shadow-card hover:-translate-y-1"
         }`}
         onClick={!isExpanded ? toggleExpand : undefined}
       >
-        <div className="relative">
-          <div className={`${isExpanded ? "h-64 md:h-96" : "aspect-square"} overflow-hidden relative`}>
-            <img 
-              src={currentImage} 
-              alt={item.title}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-              style={{ objectPosition: 'center' }}
-            />
+        {!isExpanded && (
+          <div className="relative">
+            <div className="aspect-square overflow-hidden relative">
+              <div className="w-full h-full flex items-center justify-center bg-muted">
+                <img 
+                  src={currentImage} 
+                  alt={item.title}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  style={{ objectPosition: 'center' }}
+                />
+              </div>
+              
+              {hasMultipleImages && (
+                <>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute left-2 top-1/2 transform -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={prevImage}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={nextImage}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                    {imageUrls.map((_, index) => (
+                      <button
+                        key={index}
+                        className={`h-2 w-2 rounded-full transition-all ${
+                          index === currentImageIndex 
+                            ? 'bg-white scale-125' 
+                            : 'bg-white/50'
+                        }`}
+                        onClick={(e) => goToImage(index, e)}
+                        aria-label={`Ir para imagem ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             
-            {hasMultipleImages && (
+            <div className="absolute top-2 right-2 z-10">
+              <Button
+                size="icon"
+                variant="ghost"
+                className={`h-8 w-8 rounded-full bg-background/80 backdrop-blur transition-colors ${
+                  isLiked ? "text-red-500" : "text-muted-foreground hover:text-red-500"
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
+              </Button>
+            </div>
+
+            <Badge 
+              variant="secondary" 
+              className="absolute top-2 left-2 bg-white text-primary border-primary/20 z-10"
+            >
+              {item.categories?.name || 'Categoria'}
+            </Badge>
+          </div>
+        )}
+
+        <CardContent className={`p-4 ${isExpanded ? "space-y-4" : ""}`}>
+          <div className="space-y-2 break-words">
+            <div className="flex items-start space-x-3">
+              <Avatar className="h-12 w-12 shrink-0">
+                <AvatarImage src={item.profiles?.avatar_url} alt={item.profiles?.name} />
+                <AvatarFallback className="bg-primary/10 text-primary">
+                  {item.profiles?.name?.slice(0, 2).toUpperCase() || 'US'}
+                </AvatarFallback>
+              </Avatar>
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2">
+                  <h3 className={`font-semibold ${isExpanded ? "text-xl" : "text-sm"} truncate ${!isExpanded ? "group-hover:text-primary transition-colors" : ""} break-words`}>
+                    {item.profiles?.name || 'Usuário'}
+                  </h3>
+                  {item.profiles?.is_verified && (
+                    <CheckCircle className="h-4 w-4 text-primary fill-current" />
+                  )}
+                </div>
+                
+                {isEditing ? (
+                  <Input
+                    name="title"
+                    value={editForm.title}
+                    onChange={handleEditChange}
+                    className="text-lg text-green-600 font-medium mt-1"
+                  />
+                ) : (
+                  <p className={`${isExpanded ? "text-lg text-green-600 font-medium" : "text-sm"} text-muted-foreground break-words`}>
+                    {item.title}
+                  </p>
+                )}
+                
+                <div className="flex items-center space-x-4 mt-1">
+                  <div className="flex items-center space-x-1 text-xs">
+                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                    <span className="font-medium">{item.profiles?.rating || 0}</span>
+                    <span className="text-muted-foreground">({item.profiles?.total_reviews || 0})</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {!isExpanded && (
               <>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={prevImage}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={nextImage}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                
-                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                  {imageUrls.map((_, index) => (
-                    <button
-                      key={index}
-                      className={`h-2 w-2 rounded-full transition-all ${
-                        index === currentImageIndex 
-                          ? 'bg-white scale-125' 
-                          : 'bg-white/50'
-                      }`}
-                      onClick={(e) => goToImage(index, e)}
-                      aria-label={`Ir para imagem ${index + 1}`}
-                    />
-                  ))}
+                <p className="text-sm text-muted-foreground line-clamp-2 break-words">
+                  {item.description || 'Sem descrição disponível'}
+                </p>
+
+                <div className="space-y-2 text-xs text-muted-foreground break-words">
+                  <div className="flex items-center space-x-1">
+                    <MapPin className="h-3 w-3" />
+                    <span>{item.city || item.location || 'Localização'}</span>
+                  </div>
+                  
+                  <Badge 
+                    variant="outline" 
+                    className="text-xs border-primary/20 text-primary"
+                  >
+                    {formatCondition(item.condition)}
+                  </Badge>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-lg font-bold text-primary">{formatPrice(item.price)}</span>
+                  <Button size="sm" className="bg-gradient-to-r from-primary to-primary-glow" onClick={handleBuyNow}>
+                    Comprar
+                  </Button>
                 </div>
               </>
             )}
           </div>
-          
-          <div className="absolute top-2 right-2 z-10">
-            <Button
-              size="icon"
-              variant="ghost"
-              className={`h-8 w-8 rounded-full bg-background/80 backdrop-blur transition-colors ${
-                isLiked ? "text-red-500" : "text-muted-foreground hover:text-red-500"
-              }`}
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-            >
-              <Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
-            </Button>
-          </div>
-
-          <Badge 
-            variant="secondary" 
-            className="absolute top-2 left-2 bg-white text-primary border-primary/20 z-10"
-          >
-            {item.categories?.name || 'Categoria'}
-          </Badge>
-        </div>
-
-        <CardContent className={`p-4 ${isExpanded ? "space-y-4" : ""}`}>
-          <div className="space-y-2 break-words">
-            {isEditing ? (
-              <Input
-                name="title"
-                value={editForm.title}
-                onChange={handleEditChange}
-                className="text-xl font-semibold"
-              />
-            ) : (
-              <h3 className={`font-semibold ${isExpanded ? "text-xl md:text-2xl" : "text-sm md:text-base"} line-clamp-2 group-hover:text-primary transition-colors break-words`}>
-                {item.title}
-              </h3>
-            )}
-            
-            <div className="flex items-center justify-between">
-              {isEditing ? (
-                <Input
-                  name="price"
-                  type="number"
-                  value={editForm.price}
-                  onChange={handleEditChange}
-                  className="text-2xl font-bold text-primary w-32"
-                />
-              ) : (
-                <span className={`${isExpanded ? "text-2xl md:text-3xl" : "text-lg md:text-xl"} font-bold text-primary`}>
-                  {formatPrice(item.price)}
-                </span>
-              )}
-              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                <span>{item.profiles?.rating || 0}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-1 text-xs text-muted-foreground break-words">
-              <MapPin className="h-3 w-3" />
-              <span>{item.city || item.location || 'Localização'}</span>
-            </div>
-
-            {isEditing ? (
-              <select
-                name="condition"
-                value={editForm.condition}
-                onChange={handleEditChange}
-                className="w-full border rounded px-3 py-1 text-xs"
-              >
-                <option value="novo">Novo</option>
-                <option value="como_novo">Como Novo</option>
-                <option value="bom">Bom Estado</option>
-                <option value="regular">Regular</option>
-                <option value="precisa_reparo">Precisa Reparo</option>
-              </select>
-            ) : (
-              <Badge 
-                variant="outline" 
-                className="text-xs border-primary/20 text-primary"
-              >
-                {formatCondition(item.condition)}
-              </Badge>
-            )}
-
-            {isOwner && isExpanded && !isEditing && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsEditing(true);
-                }}
-              >
-                <Edit className="h-3 w-3 mr-1" />
-                Editar
-              </Button>
-            )}
-
-            {isOwner && isExpanded && isEditing && (
-              <div className="flex gap-2 mt-2">
-                <Button
-                  size="sm"
-                  className="text-xs"
-                  onClick={handleSaveEdit}
-                  disabled={isSaving}
-                >
-                  <Save className="h-3 w-3 mr-1" />
-                  {isSaving ? "Salvando..." : "Salvar"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                  onClick={cancelEdit}
-                  disabled={isSaving}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            )}
-          </div>
 
           {isExpanded && (
-            <div className="pt-4 space-y-4">
-              <div className="border-t pt-4 flex items-center gap-3">
-                <div className="h-12 w-12 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center">
-                  {item.profiles?.avatar_url ? (
-                    <img 
-                      src={item.profiles.avatar_url} 
-                      alt={item.profiles.name}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                  ) : null}
-                  
-                  {!item.profiles?.avatar_url && (
-                    <span className="text-blue-600 font-bold">
-                      {item.profiles?.name?.slice(0, 2).toUpperCase() || 'US'}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <h4 className="font-medium">{item.profiles?.name || 'Usuário'}</h4>
-                  <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                    <span>{item.profiles?.rating || 0}</span>
-                    <span>•</span>
-                    <span>{item.profiles?.total_reviews || 0} avaliações</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t pt-4">
-                <h4 className="font-medium mb-2">Descrição</h4>
-                {isEditing ? (
-                  <Textarea
-                    name="description"
-                    value={editForm.description}
-                    onChange={handleEditChange}
-                    className="text-sm"
-                    rows={4}
+            <div className="pt-4 space-y-4 md:grid md:grid-cols-[1fr_2fr] md:gap-6 md:space-y-0">
+              <div className="md:col-span-1 space-y-4">
+                <div className="h-64 md:h-80 lg:h-96 overflow-hidden rounded-lg relative">
+                  <img 
+                    src={currentImage} 
+                    alt={item.title}
+                    className="w-full h-full object-cover"
                   />
-                ) : (
-                  <p className="text-sm text-muted-foreground whitespace-pre-line">
-                    {item.description || "Este item não possui descrição."}
-                  </p>
-                )}
-              </div>
-              
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-medium">Imagens</h4>
-                  {isEditing && imageUrls.length < MAX_IMAGES && (
+                  
+                  {hasMultipleImages && (
                     <>
                       <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleAddImageClick}
-                        disabled={uploading}
+                        size="icon"
+                        variant="ghost"
+                        className="absolute left-2 top-1/2 transform -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur"
+                        onClick={prevImage}
                       >
-                        <Plus className="h-4 w-4 mr-1" />
-                        {uploading ? "Enviando..." : "Adicionar Imagem"}
+                        <ChevronLeft className="h-4 w-4" />
                       </Button>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleImageUpload}
-                        accept="image/*"
-                        className="hidden"
-                      />
+                      
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur"
+                        onClick={nextImage}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      
+                      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                        {imageUrls.map((_, index) => (
+                          <button
+                            key={index}
+                            className={`h-2 w-2 rounded-full transition-all ${
+                              index === currentImageIndex 
+                                ? 'bg-white scale-125' 
+                                : 'bg-white/50'
+                            }`}
+                            onClick={(e) => goToImage(index, e)}
+                            aria-label={`Ir para imagem ${index + 1}`}
+                          />
+                        ))}
+                      </div>
                     </>
                   )}
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {imageUrls.map((url, index) => (
-                    <div key={index} className="relative group">
-                      <img 
-                        src={url} 
-                        alt={`${item.title} ${index + 1}`}
-                        className={`w-full h-28 md:h-36 object-cover rounded-md cursor-pointer transition-opacity ${
-                          index === currentImageIndex ? 'ring-2 ring-primary' : 'opacity-80 hover:opacity-100'
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCurrentImageIndex(index);
-                        }}
-                      />
-                      {isEditing && (
-                        <Button
-                          size="icon"
-                          variant="destructive"
-                          className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveImage(index);
-                          }}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      )}
+                
+                {hasMultipleImages && imageUrls.length > 1 && (
+                  <div>
+                    <h4 className="font-medium mb-2">Mais Imagens</h4>
+                    <div className="grid grid-cols-4 gap-2">
+                      {imageUrls.map((url, index) => (
+                        <div key={index} className="relative group">
+                          <div className="w-full h-20 bg-muted flex items-center justify-center rounded-md overflow-hidden">
+                            <img 
+                              src={url} 
+                              alt={`${item.title} ${index + 1}`}
+                              className="w-full h-full object-cover cursor-pointer transition-opacity group-hover:opacity-80"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentImageIndex(index);
+                              }}
+                            />
+                          </div>
+                          {index === currentImageIndex && (
+                            <div className="absolute inset-0 border-2 border-primary rounded-md pointer-events-none"></div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  {isEditing && imageUrls.length < MAX_IMAGES && (
-                    <div 
-                      className="border-2 border-dashed border-muted-foreground/30 rounded-md flex items-center justify-center h-28 md:h-36 cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={handleAddImageClick}
-                    >
-                      <Plus className="h-8 w-8 text-muted-foreground/50" />
-                    </div>
-                  )}
-                </div>
-                {isEditing && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {imageUrls.length} de {MAX_IMAGES} imagens (máximo)
-                  </p>
+                  </div>
                 )}
               </div>
               
-              <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
-                <Button 
-                  className="bg-green-600 hover:bg-green-700 flex-1 py-3 text-base"
-                  onClick={handleBuyNow}
-                >
-                  Comprar Agora
-                </Button>
-                <Button variant="outline" className="flex-1 py-3" onClick={handleAddToCart}>
-                  <ShoppingCart className="h-4 w-4 mr-2" />
-                  Adicionar ao Carrinho
-                </Button>
-              </div>
+              <div className="md:col-span-1 space-y-4">
+                <h2 className="text-2xl md:text-3xl font-bold text-green-600 break-words">
+                  {item.title}
+                </h2>
+               
+                <div className="flex items-center justify-between border-t pt-4">
+                  <span className="text-2xl md:text-3xl font-bold text-primary">
+                    {formatPrice(item.price)}
+                  </span>
+                  <div className="flex items-center space-x-1 text-sm">
+                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    <span className="font-medium">{item.profiles?.rating || 0}</span>
+                    <span className="text-muted-foreground">({item.profiles?.total_reviews || 0} avaliações)</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                  <div className="flex items-center space-x-2 p-2 bg-muted/30 rounded-md">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>{item.city || item.location || 'Localização não informada'}</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 p-2 bg-muted/30 rounded-md">
+                    <Badge 
+                      variant="outline" 
+                      className="border-primary/20 text-primary"
+                    >
+                      {formatCondition(item.condition)}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-2">Descrição</h4>
+                  {isEditing ? (
+                    <Textarea
+                      name="description"
+                      value={editForm.description}
+                      onChange={handleEditChange}
+                      className="text-sm"
+                      rows={4}
+                    />
+                  ) : (
+                    <p className="text-muted-foreground whitespace-pre-line">
+                      {item.description || "Este item não possui descrição."}
+                    </p>
+                  )}
+                </div>
+                
+                {isOwner && isEditing && (
+                  <div className="border-t pt-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-medium">Imagens</h4>
+                      {imageUrls.length < MAX_IMAGES && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleAddImageClick}
+                            disabled={uploading}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            {uploading ? "Enviando..." : "Adicionar Imagem"}
+                          </Button>
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleImageUpload}
+                            accept="image/*"
+                            className="hidden"
+                          />
+                        </>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {imageUrls.map((url, index) => (
+                        <div key={index} className="relative group">
+                          <img 
+                            src={url} 
+                            alt={`${item.title} ${index + 1}`}
+                            className={`w-full h-28 md:h-36 object-cover rounded-md cursor-pointer transition-opacity ${
+                              index === currentImageIndex ? 'ring-2 ring-primary' : 'opacity-80 hover:opacity-100'
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentImageIndex(index);
+                            }}
+                          />
+                          <Button
+                            size="icon"
+                            variant="destructive"
+                            className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveImage(index);
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                      {imageUrls.length < MAX_IMAGES && (
+                        <div 
+                          className="border-2 border-dashed border-muted-foreground/30 rounded-md flex items-center justify-center h-28 md:h-36 cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={handleAddImageClick}
+                        >
+                          <Plus className="h-8 w-8 text-muted-foreground/50" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {imageUrls.length} de {MAX_IMAGES} imagens (máximo)
+                    </p>
+                  </div>
+                )}
+             
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-2">Sobre o Vendedor</h4>
+                  <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-md">
+                    <Avatar className="h-14 w-14">
+                      <AvatarImage src={item.profiles?.avatar_url} alt={item.profiles?.name} />
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        {item.profiles?.name?.slice(0, 2).toUpperCase() || 'US'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <h4 className="font-medium">{item.profiles?.name || 'Usuário'}</h4>
+                        {item.profiles?.is_verified && (
+                          <CheckCircle className="h-4 w-4 text-primary fill-current" />
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
+                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                        <span>{item.profiles?.rating || 0} • {item.profiles?.total_reviews || 0} avaliações</span>
+                      </div>
+                      {item.profiles?.bio && (
+                        <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                          {item.profiles.bio}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               
-              <div className="flex justify-center pt-2">
-                <Button 
-                  variant="ghost" 
-                  className="flex items-center gap-2"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleExpand();
-                  }}
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Voltar
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
+                  <Button 
+                    className="bg-gradient-to-r from-primary to-primary-glow flex-1 py-3 text-base"
+                    onClick={handleBuyNow}
+                  >
+                    <MessageCircle className="h-5 w-5 mr-2" />
+                    Comprar Agora
+                  </Button>
+                  <Button variant="outline" className="flex-1 py-3" onClick={handleAddToCart}>
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Adicionar ao Carrinho
+                  </Button>
+                </div>
+
+                {isOwner && !isEditing && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsEditing(true);
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar Item
+                  </Button>
+                )}
+
+                {isOwner && isEditing && (
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      className="flex-1"
+                      onClick={handleSaveEdit}
+                      disabled={isSaving}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {isSaving ? "Salvando..." : "Salvar"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={cancelEdit}
+                      disabled={isSaving}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
+               
+                <div className="flex justify-center pt-2">
+                  <Button 
+                    variant="ghost" 
+                    className="flex items-center gap-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleExpand();
+                    }}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Voltar
+                  </Button>
+                </div>
               </div>
             </div>
           )}

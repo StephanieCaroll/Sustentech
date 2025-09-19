@@ -19,6 +19,8 @@ export interface Item {
   views?: number;
   created_at: string;
   profiles?: {
+    bio: any;
+    is_verified: any;
     name: string;
     avatar_url?: string;
     rating?: number;
