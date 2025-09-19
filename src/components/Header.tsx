@@ -1,4 +1,4 @@
-import { Search, Bell, User, LogOut } from "lucide-react";
+import { Search, MessageCircle, ShoppingCart, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,12 +52,23 @@ const Header = ({ searchTerm, onSearchChange, onSearchSubmit }: HeaderProps) => 
     <div className="flex items-center space-x-2 shrink-0">
       {user ? (
         <>
+          {/* Ícone de Mensagens */}
           <Button variant="ghost" size="icon" className="relative h-10 w-10"> 
-            <Bell className="h-6 w-6" /> 
+            <MessageCircle className="h-6 w-6" /> 
+            <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary rounded-full text-[10px] text-primary-foreground flex items-center justify-center">
+              3
+            </span>
+          </Button>
+          
+          {/* Ícone de Carrinho */}
+          <Button variant="ghost" size="icon" className="relative h-10 w-10"> 
+            <ShoppingCart className="h-6 w-6" /> 
             <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary rounded-full text-[10px] text-primary-foreground flex items-center justify-center">
               2
             </span>
           </Button>
+          
+          {/* Menu de Perfil */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-10 w-10"> 
@@ -84,7 +95,6 @@ const Header = ({ searchTerm, onSearchChange, onSearchSubmit }: HeaderProps) => 
     </div>
   </div>
 </header>
-
   );
 };
 

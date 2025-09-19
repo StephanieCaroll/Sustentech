@@ -13,6 +13,14 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const handleAddClick = () => {
+    if (activeTab === "items") {
+      navigate("/AddItem");
+    } else if (activeTab === "services") {
+      navigate("/AddService");
+    }
+  };
+
   return (
     <div className="w-full bg-background border-b">
     
@@ -52,7 +60,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         
         <Button
           className="space-x-1 w-full bg-gradient-to-r from-primary to-primary-glow"
-          onClick={() => navigate("/AddItem")}
+          onClick={handleAddClick} 
         >
           <Plus className="h-4 w-4" />
           <span>Adicionar</span>

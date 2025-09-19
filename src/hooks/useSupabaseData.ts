@@ -22,6 +22,7 @@ export interface Item {
     name: string;
     avatar_url?: string;
     rating?: number;
+    total_reviews?: number;
   } | null;
   categories?: {
     name: string;

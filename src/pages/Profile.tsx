@@ -3,7 +3,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import FavoritedItems from "@/components/FavoritedItems";
 import { useToast } from "@/hooks/use-toast";
 import { Pencil } from "lucide-react";
@@ -19,6 +18,7 @@ interface ProfileData {
   rating?: number;
   total_reviews?: number;
   email?: string;
+  items_count?: number;
 }
 
 export default function Profile() {
@@ -29,35 +29,46 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchProfile() {
       if (!user) return;
       
       try {
-        const { data, error } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("id, name, avatar_url, phone, address, city, state, rating, total_reviews")
           .eq("user_id", user.id)
           .single();
           
-        if (error) {
-          console.error("Erro ao buscar perfil:", error);
+        if (profileError) {
+          console.error("Erro ao buscar perfil:", profileError);
           return;
         }
         
-        if (data) {
+        const { count: itemsCount, error: itemsError } = await supabase
+          .from("items")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id);
+          
+        if (itemsError) {
+          console.error("Erro ao contar itens:", itemsError);
+        }
+        
+        if (profileData) {
           setProfile({
-            id: data.id,
-            name: data.name || "",
-            avatar_url: data.avatar_url || undefined,
-            phone: data.phone || "",
-            address: data.address || "",
-            city: data.city || "",
-            state: data.state || "",
-            rating: data.rating,
-            total_reviews: data.total_reviews,
+            id: profileData.id,
+            name: profileData.name || "",
+            avatar_url: profileData.avatar_url || undefined,
+            phone: profileData.phone || "",
+            address: profileData.address || "",
+            city: profileData.city || "",
+            state: profileData.state || "",
+            rating: profileData.rating,
+            total_reviews: profileData.total_reviews,
             email: user.email || "",
+            items_count: itemsCount || 0,
           });
         }
       } catch (error) {
@@ -70,56 +81,90 @@ export default function Profile() {
     fetchProfile();
   }, [user]);
 
-  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user || !profile) return;
-    
+
+    // Verificar se o arquivo é uma imagem
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Erro",
+        description: "Por favor, selecione um arquivo de imagem.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Verificar tamanho do arquivo (máximo 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "Erro",
+        description: "A imagem deve ter no máximo 2MB.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Criar preview imediata da imagem
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setAvatarPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // Fazer upload da imagem como Base64
+    uploadAvatarAsBase64(file);
+  };
+
+  async function uploadAvatarAsBase64(file: File) {
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `avatars/${user.id}.${fileExt}`;
+      // Ler o arquivo como Base64
+      const base64String = await readFileAsBase64(file);
       
-      // Fazer upload do arquivo
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true });
-        
-      if (uploadError) {
-        throw uploadError;
-      }
-      
-      // Obter URL pública
-      const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-      
-      // Atualizar perfil com a nova URL do avatar
+      // Atualizar perfil com a imagem em base64
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: urlData.publicUrl })
-        .eq('id', profile.id);
+        .update({ avatar_url: base64String })
+        .eq('id', profile!.id);
         
       if (updateError) {
-        throw updateError;
+        console.error("Erro ao salvar avatar:", updateError);
+        throw new Error("Não foi possível salvar a imagem no perfil.");
       }
       
       // Atualizar estado local
-      setProfile((prev) => prev ? { ...prev, avatar_url: urlData.publicUrl } : prev);
+      setProfile((prev) => prev ? { 
+        ...prev, 
+        avatar_url: base64String 
+      } : prev);
       
       toast({
-        title: "Foto atualizada",
-        description: "Sua foto de perfil foi atualizada com sucesso!",
+        title: "Foto atualizada!",
+        description: "Sua foto de perfil foi salva com sucesso.",
       });
-    } catch (error) {
+      
+    } catch (error: any) {
       console.error("Erro ao fazer upload da imagem:", error);
       toast({
         title: "Erro",
-        description: "Não foi possível atualizar sua foto de perfil.",
+        description: error.message || "Não foi possível atualizar sua foto de perfil.",
         variant: "destructive"
       });
     } finally {
       setUploading(false);
+      // Manter o preview por mais 2 segundos para transição suave
+      setTimeout(() => setAvatarPreview(null), 2000);
     }
+  }
+
+  function readFileAsBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   if (loading) {
@@ -134,12 +179,35 @@ export default function Profile() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-100 to-white p-4">
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-8 border border-blue-200 flex flex-col items-center">
         <div className="relative flex flex-col items-center mb-4">
-          <Avatar className="h-28 w-28 mb-2 ring-4 ring-blue-200">
-            <AvatarImage src={profile.avatar_url} alt={profile.name} />
-            <AvatarFallback className="bg-blue-100 text-blue-600 text-2xl">
-              {profile.name.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <div className="h-28 w-28 mb-2 ring-4 ring-blue-200 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center">
+            {/* Mostrar preview primeiro, depois a imagem do perfil */}
+            {avatarPreview ? (
+              <img 
+                src={avatarPreview} 
+                alt="Preview"
+                className="h-full w-full object-cover"
+              />
+            ) : profile.avatar_url ? (
+              <img 
+                src={profile.avatar_url} 
+                alt={profile.name}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  // Se der erro ao carregar, mostrar iniciais
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+            ) : null}
+            
+            {/* Fallback para iniciais */}
+            {(!avatarPreview && !profile.avatar_url) && (
+              <span className="text-blue-600 text-2xl font-bold">
+                {profile.name.slice(0, 2).toUpperCase()}
+              </span>
+            )}
+          </div>
+          
           <input
             ref={fileInputRef}
             type="file"
@@ -151,7 +219,7 @@ export default function Profile() {
           <Button
             size="sm"
             variant="outline"
-            className="absolute bottom-0 right-0 rounded-full shadow-md"
+            className="absolute bottom-0 right-0 rounded-full shadow-md bg-white"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
           >
@@ -211,9 +279,9 @@ export default function Profile() {
             )}
           </div>
           <div className="bg-gray-50 rounded-xl p-4">
-            <span className="font-semibold">Total de avaliações:</span> 
-            {profile.total_reviews !== undefined && profile.total_reviews !== null ? (
-              <span className="ml-2">{profile.total_reviews}</span>
+            <span className="font-semibold">Itens publicados:</span> 
+            {profile.items_count !== undefined ? (
+              <span className="ml-2">{profile.items_count}</span>
             ) : (
               <span className="text-gray-400 ml-2">0</span>
             )}
