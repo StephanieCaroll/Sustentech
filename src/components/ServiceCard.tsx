@@ -19,9 +19,9 @@ interface UserProfile {
   bio?: string;
 }
 
-// Extender a interface Service para incluir image_urls
+// Extender a interface Service para incluir images
 interface ExtendedService extends Service {
-  image_urls?: string[];
+  images?: string[];
   profiles?: UserProfile;
 }
 
@@ -55,29 +55,42 @@ const ServiceCard = ({ service, isFavorite = false, onToggleFavorite, onStartCon
     };
   }, [isExpanded]);
 
-  useEffect(() => {
-    if (!isExpanded) {
-      setCurrentImageIndex(0);
-    }
-  }, [isExpanded]);
-
   // Carregar URLs das imagens do bucket service-images
   useEffect(() => {
     const loadServiceImages = async () => {
       setLoadingImages(true);
       try {
-        if (service.image_urls && service.image_urls.length > 0) {
-          const urls = service.image_urls.map((imagePath) => {
-            if (typeof imagePath !== 'string') return '';
-            
-            // Gerar URL pública para a imagem no bucket service-images
-            // O bucket deve ser público no Supabase para que isso funcione
-            const { data } = supabase.storage
-              .from('service-images')
-              .getPublicUrl(imagePath);
-            
-            return data.publicUrl;
-          });
+        if (service.images && service.images.length > 0) {
+          // Verificar se as imagens já são URLs completas
+          const isFullUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://');
+          
+          const urls = await Promise.all(
+            service.images.map(async (imagePath) => {
+              if (typeof imagePath !== 'string') return '';
+              
+              // Se já é uma URL completa, usar diretamente
+              if (isFullUrl(imagePath)) {
+                return imagePath;
+              }
+              
+              try {
+                // Gerar URL assinada para a imagem no bucket service-images
+                const { data, error } = await supabase.storage
+                  .from('service-images')
+                  .createSignedUrl(imagePath, 60 * 60); // URL válida por 1 hora
+                
+                if (error) {
+                  console.error('Erro ao gerar URL assinada:', error);
+                  return getDefaultImage();
+                }
+                
+                return data?.signedUrl || getDefaultImage();
+              } catch (error) {
+                console.error('Erro ao processar imagem:', error, imagePath);
+                return getDefaultImage();
+              }
+            })
+          );
           
           const validUrls = urls.filter(url => url !== '');
           setImageUrls(validUrls.length > 0 ? validUrls : [getDefaultImage()]);
@@ -94,7 +107,7 @@ const ServiceCard = ({ service, isFavorite = false, onToggleFavorite, onStartCon
     };
 
     loadServiceImages();
-  }, [service.image_urls]);
+  }, [service.images]);
 
   const getDefaultImage = () => {
     // Imagem padrão relacionada a serviços
@@ -132,7 +145,7 @@ const ServiceCard = ({ service, isFavorite = false, onToggleFavorite, onStartCon
     e.stopPropagation();
     if (imageUrls.length > 1) {
       setCurrentImageIndex((prev) => 
-        prev === 0 ? imageUrls.length - 1 : prev + 1
+        prev === 0 ? imageUrls.length - 1 : prev - 1
       );
     }
   };
