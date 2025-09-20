@@ -143,7 +143,6 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
     setCurrentImageIndex(index);
   };
 
-  // Detectar cliques fora do card expandido
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isExpanded && cardRef.current && !cardRef.current.contains(event.target as Node)) {

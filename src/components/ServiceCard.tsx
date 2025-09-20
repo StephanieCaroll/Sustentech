@@ -37,20 +37,18 @@ interface ExtendedService extends Service {
 
 interface ServiceCardProps {
   service: ExtendedService;
-  isFavorite?: boolean;
-  onToggleFavorite?: (serviceId: string) => void;
   onStartConversation?: (providerId: string, service: Service, message: string) => void;
   onUpdateService?: (updatedService: Service) => void;
   onDeleteService?: (serviceId: string) => void;
+  onFavoriteUpdate?: () => void;
 }
 
-const ServiceCard = ({ 
-  service, 
-  isFavorite = false, 
-  onToggleFavorite, 
-  onStartConversation, 
+const ServiceCard = ({
+  service,
+  onStartConversation,
   onUpdateService,
-  onDeleteService 
+  onDeleteService,
+  onFavoriteUpdate
 }: ServiceCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -68,7 +66,6 @@ const ServiceCard = ({
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Form state
   const [formData, setFormData] = useState({
     name: service.name || "",
     description: service.description || "",
@@ -82,30 +79,38 @@ const ServiceCard = ({
   const isOwner = user?.id === service.user_id;
   const MAX_IMAGES = 5;
 
-  useEffect(() => {
-    if (isExpanded) {
-      const scrollY = window.scrollY;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = '100%';
-    } else {
-      const scrollY = document.body.style.top;
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
-      window.scrollTo(0, parseInt(scrollY || '0') * -1);
-    }
+  const [isFavorite, setIsFavorite] = useState(false);
 
-    return () => {
-      if (isExpanded) {
-        const scrollY = document.body.style.top;
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.width = '';
-        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+  useEffect(() => {
+    const checkFavorite = async () => {
+      if (!user) {
+        setIsFavorite(false);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('favorites')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('service_id', service.id) 
+          .maybeSingle();
+
+        if (error) {
+          console.error('Erro ao verificar favorito:', error);
+          setIsFavorite(false);
+          return;
+        }
+        
+        setIsFavorite(!!data);
+      } catch (error) {
+        console.error('Erro ao verificar favorito:', error);
+        setIsFavorite(false);
       }
     };
-  }, [isExpanded]);
+
+    checkFavorite();
+  }, [user, service.id]);
 
   useEffect(() => {
     const loadServiceImages = async () => {
@@ -113,25 +118,25 @@ const ServiceCard = ({
       try {
         if (service.images && service.images.length > 0) {
           const isFullUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://');
-          
+
           const urls = await Promise.all(
             service.images.map(async (imagePath) => {
               if (typeof imagePath !== 'string') return '';
-           
+
               if (isFullUrl(imagePath)) {
                 return imagePath;
               }
-              
+
               try {
                 const { data, error } = await supabase.storage
                   .from('service-images')
-                  .createSignedUrl(imagePath, 60 * 60); 
-                
+                  .createSignedUrl(imagePath, 60 * 60);
+
                 if (error) {
                   console.error('Erro ao gerar URL assinada:', error);
                   return getDefaultImage();
                 }
-                
+
                 return data?.signedUrl || getDefaultImage();
               } catch (error) {
                 console.error('Erro ao processar imagem:', error, imagePath);
@@ -139,7 +144,7 @@ const ServiceCard = ({
               }
             })
           );
-          
+
           const validUrls = urls.filter(url => url !== '');
           setImageUrls(validUrls.length > 0 ? validUrls : [getDefaultImage()]);
         } else {
@@ -181,7 +186,7 @@ const ServiceCard = ({
   const nextImage = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (imageUrls.length > 1) {
-      setCurrentImageIndex((prev) => 
+      setCurrentImageIndex((prev) =>
         prev === imageUrls.length - 1 ? 0 : prev + 1
       );
     }
@@ -190,7 +195,7 @@ const ServiceCard = ({
   const prevImage = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (imageUrls.length > 1) {
-      setCurrentImageIndex((prev) => 
+      setCurrentImageIndex((prev) =>
         prev === 0 ? imageUrls.length - 1 : prev - 1
       );
     }
@@ -204,7 +209,7 @@ const ServiceCard = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isExpanded && cardRef.current && !cardRef.current.contains(event.target as Node)) {
-        toggleExpand();
+        setIsExpanded(false);
       }
     };
 
@@ -214,66 +219,90 @@ const ServiceCard = ({
     };
   }, [isExpanded]);
 
-  const handleContact = (e: React.MouseEvent, isQuoteRequest: boolean = false) => {
-    e.stopPropagation();
-    console.log('handleContact chamado', { isQuoteRequest, user, isOwner });
-    
-    if (!user) {
-      toast({
-        title: "Atenção",
-        description: "Você precisa estar logado para entrar em contato",
-        variant: "destructive"
-      });
-      return;
-    }
+  const toggleFavorite = async (e: React.MouseEvent) => {
+  e.stopPropagation();
 
-    if (isOwner) {
-      toast({
-        title: "Atenção",
-        description: "Você não pode contratar seu próprio serviço",
-        variant: "destructive"
-      });
-      return;
-    }
+  if (!user) {
+    toast({
+      title: "Atenção",
+      description: "Você precisa estar logado para favoritar serviços",
+      variant: "destructive"
+    });
+    return;
+  }
 
-    let messageText = "";
-    
-    if (isQuoteRequest) {
-      messageText = `Olá! Gostaria de solicitar um orçamento para o serviço "${service.name}". Poderia me fornecer mais detalhes sobre valores e disponibilidade?`;
+  try {
+    if (isFavorite) {
+      const { error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('service_id', service.id);
+
+      if (error) {
+        console.error('Erro ao remover favorito:', error);
+        if (error.code === 'PGRST116' || error.message?.includes('found')) {
+          setIsFavorite(false);
+          return;
+        }
+        throw error;
+      }
+
+      setIsFavorite(false);
+      toast({
+        title: "Removido",
+        description: "Serviço removido dos favoritos",
+      });
     } else {
-      messageText = `Olá! Tenho interesse no serviço "${service.name}". Poderia me dar mais informações?`;
-    }
+  
+      const { error } = await supabase
+        .from('favorites')
+        .insert({
+          user_id: user.id,
+          service_id: service.id, 
+          item_id: null, 
+          created_at: new Date().toISOString()
+        });
 
-    console.log('Chamando onStartConversation:', { providerId: service.user_id, message: messageText });
-    
-    if (onStartConversation) {
-      onStartConversation(service.user_id, service, messageText);
-    } else {
-      console.error('onStartConversation não está definido!');
+      if (error) {
+        console.error('Erro ao adicionar favorito:', error);
+       
+        if (error.code === '23505' || error.message?.includes('unique')) {
+          setIsFavorite(true);
+          return;
+        }
+        throw error;
+      }
+
+      setIsFavorite(true);
       toast({
-        title: "Erro",
-        description: "Função de conversa não disponível",
-        variant: "destructive"
+        title: "Adicionado",
+        description: "Serviço adicionado aos favoritos",
       });
     }
-  };
 
-  const handleEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsEditing(true);
-  };
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsDeleting(true);
-  };
-
-  const confirmDelete = async () => {
-    if (onDeleteService) {
-      onDeleteService(service.id);
+    if (onFavoriteUpdate) {
+      onFavoriteUpdate();
     }
-    setIsDeleting(false);
-  };
+  } catch (error: any) {
+    console.error('Erro ao atualizar favoritos:', error);
+    
+    let errorMessage = "Não foi possível atualizar os favoritos";
+    if (error?.code === '23505') {
+      errorMessage = "Este serviço já está nos seus favoritos";
+    } else if (error?.code === 'PGRST116') {
+      errorMessage = "Favorito não encontrado";
+    } else if (error?.code === '23514') {
+      errorMessage = "Erro de constraint - verifique se está tentando favoritar um item e um serviço ao mesmo tempo";
+    }
+
+    toast({
+      title: "Erro",
+      description: errorMessage,
+      variant: "destructive"
+    });
+  }
+};
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -291,102 +320,121 @@ const ServiceCard = ({
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files);
-      if (imageUrls.length + files.length <= MAX_IMAGES) {
-        setNewImages(prev => [...prev, ...files]);
-      } else {
-        toast({
-          title: "Limite de imagens",
-          description: `Você pode adicionar no máximo ${MAX_IMAGES} imagens`,
-          variant: "destructive"
-        });
-      }
+    const files = e.target.files;
+    if (!files) return;
+
+    const filesArray = Array.from(files);
+    if (newImages.length + imageUrls.length + filesArray.length > MAX_IMAGES) {
+      toast({
+        title: "Limite excedido",
+        description: `Você pode ter no máximo ${MAX_IMAGES} imagens`,
+        variant: "destructive"
+      });
+      return;
     }
+
+    setNewImages(prev => [...prev, ...filesArray]);
   };
 
   const removeNewImage = (index: number) => {
     setNewImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const markImageForDeletion = (imagePath: string, e: React.MouseEvent) => {
+  const markImageForDeletion = (url: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (imageUrls.length > 1) {
-      setImagesToDelete(prev => [...prev, imagePath]);
-      setImageUrls(prev => prev.filter(url => url !== imagePath));
-    } else {
+    setImagesToDelete(prev => [...prev, url]);
+    setImageUrls(prev => prev.filter(imgUrl => imgUrl !== url));
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDeleting(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      const { error } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', service.id);
+
+      if (error) throw error;
+
       toast({
-        title: "Atenção",
-        description: "O serviço precisa ter pelo menos uma imagem",
+        title: "Sucesso",
+        description: "Serviço excluído com sucesso",
+      });
+
+      if (onDeleteService) {
+        onDeleteService(service.id);
+      }
+
+      setIsDeleting(false);
+    } catch (error) {
+      console.error('Erro ao excluir serviço:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o serviço",
         variant: "destructive"
       });
     }
   };
 
   const saveChanges = async () => {
+    setIsSaving(true);
     try {
-      setIsSaving(true);
-
-      const uploadedImagePaths = [...(service.images || []).filter(img => !imagesToDelete.includes(img))];
+     
+      const uploadedImagePaths = [...service.images || []];
       
       for (const file of newImages) {
-        const fileName = `${service.id}/${Date.now()}_${file.name}`;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
           .from('service-images')
           .upload(fileName, file);
-        
-        if (uploadError) {
-          console.error('Erro ao fazer upload da imagem:', uploadError);
-          continue;
-        }
-        
+
+        if (uploadError) throw uploadError;
         uploadedImagePaths.push(fileName);
       }
-  
-      for (const imagePath of imagesToDelete) {
-        if (!imagePath.startsWith('http://') && !imagePath.startsWith('https://')) {
-          const { error: deleteError } = await supabase.storage
-            .from('service-images')
-            .remove([imagePath]);
-          
-          if (deleteError) {
-            console.error('Erro ao deletar imagem:', deleteError);
-          }
-        }
-      }
-      
+
+      const finalImagePaths = uploadedImagePaths.filter(path => 
+        !imagesToDelete.includes(path)
+      );
+
       const { data, error } = await supabase
         .from('services')
         .update({
           ...formData,
-          images: uploadedImagePaths
+          images: finalImagePaths
         })
         .eq('id', service.id)
         .select()
         .single();
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (onUpdateService && data) {
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Serviço atualizado com sucesso",
+      });
+
+      if (onUpdateService) {
         onUpdateService(data);
       }
-      
+
       setIsEditing(false);
       setNewImages([]);
       setImagesToDelete([]);
-      
-      toast({
-        title: "Sucesso",
-        description: "Serviço atualizado com sucesso!",
-      });
-      
     } catch (error) {
       console.error('Erro ao atualizar serviço:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível atualizar o serviço. Tente novamente.",
+        description: "Não foi possível atualizar o serviço",
         variant: "destructive"
       });
     } finally {
@@ -407,40 +455,29 @@ const ServiceCard = ({
     });
     setNewImages([]);
     setImagesToDelete([]);
-   
-    if (service.images && service.images.length > 0) {
-      const isFullUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://');
-      
-      Promise.all(
-        service.images.map(async (imagePath) => {
-          if (typeof imagePath !== 'string') return '';
-       
-          if (isFullUrl(imagePath)) {
-            return imagePath;
-          }
-          
-          try {
-            const { data } = await supabase.storage
-              .from('service-images')
-              .createSignedUrl(imagePath, 60 * 60); 
-            
-            return data?.signedUrl || getDefaultImage();
-          } catch (error) {
-            console.error('Erro ao processar imagem:', error, imagePath);
-            return getDefaultImage();
-          }
-        })
-      ).then(urls => {
-        const validUrls = urls.filter(url => url !== '');
-        setImageUrls(validUrls.length > 0 ? validUrls : [getDefaultImage()]);
-      });
-    } else {
-      setImageUrls([getDefaultImage()]);
-    }
   };
 
-  const hasMultipleImages = imageUrls.length > 1;
-  const currentImage = imageUrls[currentImageIndex] || getDefaultImage();
+  const handleContact = (e: React.MouseEvent, isBudgetRequest: boolean) => {
+    e.stopPropagation();
+    
+    if (!user) {
+      toast({
+        title: "Atenção",
+        description: "Você precisa estar logado para entrar em contato",
+        variant: "destructive"
+      });
+      navigate('/login');
+      return;
+    }
+
+    if (onStartConversation) {
+      const defaultMessage = isBudgetRequest 
+        ? `Olá! Gostaria de solicitar um orçamento para o serviço: ${service.name}`
+        : `Olá! Tenho interesse no seu serviço: ${service.name}`;
+      
+      onStartConversation(service.user_id, service, defaultMessage);
+    }
+  };
 
   if (loadingImages) {
     return (
@@ -455,13 +492,16 @@ const ServiceCard = ({
     );
   }
 
+  const hasMultipleImages = imageUrls.length > 1;
+  const currentImage = imageUrls[currentImageIndex] || getDefaultImage();
+
   return (
     <div className="relative">
-      <Card 
+      <Card
         ref={cardRef}
         className={`w-full max-w-full overflow-hidden group cursor-pointer ${
-          isExpanded 
-            ? "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-background rounded-lg shadow-xl overflow-y-auto max-h-[90vh] w-[95vw] max-w-4xl" 
+          isExpanded
+            ? "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-background rounded-lg shadow-xl overflow-y-auto max-h-[90vh] w-[95vw] max-w-4xl"
             : "hover:shadow-card hover:-translate-y-1"
         }`}
         onClick={!isExpanded ? toggleExpand : undefined}
@@ -470,18 +510,18 @@ const ServiceCard = ({
           <div className="relative">
             <div className="aspect-square overflow-hidden relative">
               <div className="w-full h-full flex items-center justify-center bg-muted">
-                <img 
-                  src={currentImage} 
+                <img
+                  src={currentImage}
                   alt={service.name}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  style={{ objectPosition: 'center' }}
+                  style={{ objectPosition: "center" }}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.src = getDefaultImage();
                   }}
                 />
               </div>
-              
+
               {hasMultipleImages && (
                 <>
                   <Button
@@ -492,7 +532,7 @@ const ServiceCard = ({
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  
+
                   <Button
                     size="icon"
                     variant="ghost"
@@ -501,15 +541,13 @@ const ServiceCard = ({
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
-                  
+
                   <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
                     {imageUrls.map((_, index) => (
                       <button
                         key={index}
                         className={`h-2 w-2 rounded-full transition-all ${
-                          index === currentImageIndex 
-                            ? 'bg-white scale-125' 
-                            : 'bg-white/50'
+                          index === currentImageIndex ? "bg-white scale-125" : "bg-white/50"
                         }`}
                         onClick={(e) => goToImage(index, e)}
                         aria-label={`Ir para imagem ${index + 1}`}
@@ -519,7 +557,7 @@ const ServiceCard = ({
                 </>
               )}
             </div>
-            
+
             <div className="absolute top-2 right-2 z-10 flex flex-col gap-2">
               <Button
                 size="icon"
@@ -527,22 +565,17 @@ const ServiceCard = ({
                 className={`h-8 w-8 rounded-full bg-background/80 backdrop-blur transition-colors ${
                   isFavorite ? "text-red-500" : "text-muted-foreground hover:text-red-500"
                 }`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onToggleFavorite) {
-                    onToggleFavorite(service.id);
-                  }
-                }}
+                onClick={toggleFavorite}
               >
                 <Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
               </Button>
             </div>
 
-            <Badge 
-              variant="secondary" 
+            <Badge
+              variant="secondary"
               className="absolute top-2 left-2 bg-white text-primary border-primary/20 z-10"
             >
-              {service.categories?.name || 'Serviço'}
+              {service.categories?.name || "Serviço"}
             </Badge>
           </div>
         )}
@@ -720,6 +753,7 @@ const ServiceCard = ({
                             onChange={handleImageUpload}
                             accept="image/*"
                             className="hidden"
+                            multiple
                           />
                         </>
                       )}
@@ -887,7 +921,7 @@ const ServiceCard = ({
 
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-2">Descrição do Serviço</h4>
-                  {isEditing ? (
+                                   {isEditing ? (
                     <Textarea
                       name="description"
                       value={formData.description}
@@ -978,7 +1012,7 @@ const ServiceCard = ({
                     className="flex items-center gap-2"
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleExpand();
+                      setIsExpanded(false);
                     }}
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -994,28 +1028,28 @@ const ServiceCard = ({
       {isExpanded && (
         <div 
           className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
-          onClick={toggleExpand}
+          onClick={() => setIsExpanded(false)}
         />
       )}
 
-     <Dialog open={isDeleting} onOpenChange={setIsDeleting}>
-  <DialogContent className="sm:max-w-[425px]">
-    <DialogHeader>
-      <DialogTitle>Confirmar Exclusão</DialogTitle>
-      <DialogDescription>
-        Tem certeza que deseja excluir este serviço? Esta ação não pode ser desfeita.
-      </DialogDescription>
-    </DialogHeader>
-    <DialogFooter>
-      <Button variant="outline" onClick={() => setIsDeleting(false)}>
-        Cancelar
-      </Button>
-      <Button variant="destructive" onClick={confirmDelete}>
-        Excluir
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+      <Dialog open={isDeleting} onOpenChange={setIsDeleting}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir este serviço? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleting(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
