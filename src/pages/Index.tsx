@@ -5,6 +5,7 @@ import Navigation from "@/components/Navigation";
 import CategoryFilter from "@/components/CategoryFilter";
 import ItemCard from "@/components/ItemCard";
 import ServiceCard from "@/components/ServiceCard";
+import { Messages } from "@/components/Message";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { Loader2 } from "lucide-react";
@@ -14,6 +15,9 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<"items" | "services">("items");
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isMessagesOpen, setIsMessagesOpen] = useState(false);
+  const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
   const { user, loading: authLoading } = useAuth();
   const { items, services, categories, loading, searchData, filterByCategory } = useSupabaseData();
   const navigate = useNavigate();
@@ -37,6 +41,12 @@ const Index = () => {
     setActiveTab(tab);
     setActiveCategory("all");
     setSearchTerm("");
+  };
+
+  const handleStartConversation = (sellerId: string, item: any) => {
+    setSelectedSellerId(sellerId);
+    setSelectedItem(item);
+    setIsMessagesOpen(true);
   };
 
   useEffect(() => {
@@ -85,7 +95,10 @@ const Index = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {items.map((item) => (
                 <div key={item.id} className="w-full max-w-full overflow-hidden">
-                  <ItemCard item={item} />
+                  <ItemCard 
+                    item={item} 
+                    onStartConversation={handleStartConversation}
+                  />
                 </div>
               ))}
             </div>
@@ -138,7 +151,7 @@ const Index = () => {
             Comunidade SustenTech
           </h2>
           <p className="text-muted-foreground mb-4 break-words">
-            Juntos por um consumo mais consciente e sustentável
+            Juntos por um consumo mais consciente và sustentável
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             <div>
@@ -156,6 +169,17 @@ const Index = () => {
           </div>
         </div>
       </main>
+
+      <Messages 
+        isOpen={isMessagesOpen} 
+        onClose={() => {
+          setIsMessagesOpen(false);
+          setSelectedSellerId(null);
+          setSelectedItem(null);
+        }}
+        initialSellerId={selectedSellerId || undefined}
+        initialItem={selectedItem}
+      />
     </div>
   );
 };

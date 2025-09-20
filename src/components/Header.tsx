@@ -4,9 +4,11 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Cart from "./Cart";
 import { useCartCount } from '@/hooks/useCartCount';
+import { Messages } from "./Message";
+import { supabase } from "@/integrations/supabase/client";
 
 interface HeaderProps {
   searchTerm: string;
@@ -18,7 +20,9 @@ const Header = ({ searchTerm, onSearchChange, onSearchSubmit }: HeaderProps) => 
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isMessagesOpen, setIsMessagesOpen] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
   const handleSearchKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -26,6 +30,69 @@ const Header = ({ searchTerm, onSearchChange, onSearchSubmit }: HeaderProps) => 
     }
   };
 
+  // Função para buscar a contagem de mensagens não lidas
+  const fetchUnreadMessagesCount = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { count, error } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact' })
+        .eq('receiver_id', user.id)
+        .eq('read', false);
+      
+      if (error) {
+        console.error('Erro ao buscar mensagens não lidas:', error);
+        return;
+      }
+      
+      setUnreadMessagesCount(count || 0);
+    } catch (error) {
+      console.error('Erro ao buscar mensagens não lidas:', error);
+    }
+  };
+
+  // Configurar real-time para novas mensagens
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    // Buscar contagem inicial
+    fetchUnreadMessagesCount();
+    
+    // Inscrever-se para atualizações em tempo real
+    const subscription = supabase
+      .channel('unread-messages-count')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `receiver_id=eq.${user.id}`
+      }, () => {
+        // Quando uma nova mensagem é recebida, atualizar a contagem
+        fetchUnreadMessagesCount();
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `receiver_id=eq.${user.id}`
+      }, () => {
+        // Quando uma mensagem é marcada como lida, atualizar a contagem
+        fetchUnreadMessagesCount();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user]);
+
+  // Atualizar contagem quando o modal de mensagens for fechado
+  useEffect(() => {
+    if (!isMessagesOpen && user) {
+      fetchUnreadMessagesCount();
+    }
+  }, [isMessagesOpen, user]);
 
   return (
     <>
@@ -60,11 +127,18 @@ const Header = ({ searchTerm, onSearchChange, onSearchSubmit }: HeaderProps) => 
             {user ? (
               <>
                 {/* Ícone de Mensagens */}
-                <Button variant="ghost" size="icon" className="relative h-10 w-10"> 
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="relative h-10 w-10"
+                  onClick={() => setIsMessagesOpen(true)}
+                > 
                   <MessageCircle className="h-6 w-6" /> 
-                  <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary rounded-full text-[10px] text-primary-foreground flex items-center justify-center">
-                    3
-                  </span>
+                  {unreadMessagesCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary rounded-full text-[10px] text-primary-foreground flex items-center justify-center">
+                      {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                    </span>
+                  )}
                 </Button>
                 
                 {/* Ícone de Carrinho */}
@@ -109,6 +183,11 @@ const Header = ({ searchTerm, onSearchChange, onSearchSubmit }: HeaderProps) => 
       </header>
 
       <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      
+      <Messages 
+        isOpen={isMessagesOpen} 
+        onClose={() => setIsMessagesOpen(false)} 
+      />
     </>
   );
 };
