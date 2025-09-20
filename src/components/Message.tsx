@@ -143,7 +143,6 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
         }
       }
 
-      // Fallback: verificar atividade recente nas mensagens
       const { data: lastActivity } = await supabase
         .from('messages')
         .select('created_at')
@@ -370,8 +369,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
       setUploadingImage(true);
-      
-      // Verificar se o bucket 'message-images' existe
+   
       const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
       
       if (bucketsError) {
@@ -382,15 +380,13 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       const targetBucket = buckets?.find(bucket => 
         bucket.name === 'messages' || bucket.name === 'message-images'
       );
-      
-      // Usar o primeiro bucket disponível ou 'messages' como padrão
+    
       const bucketName = targetBucket?.name || 'messages';
       
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = fileName;
 
-      // Tentar fazer upload para o bucket
       const { error: uploadError } = await supabase.storage
         .from(bucketName)
         .upload(filePath, file);
@@ -482,7 +478,6 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
     const file = e.target.files?.[0];
     if (!file || !activeConversation || !currentUser) return;
 
-    // Verificar se o arquivo é uma imagem
     if (!file.type.startsWith('image/')) {
       toast({
         title: "Erro",
@@ -492,7 +487,6 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       return;
     }
 
-    // Verificar tamanho do arquivo (máximo 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "Erro",
@@ -507,7 +501,6 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       await sendMessage("", imageUrl);
     }
 
-    // Limpar o input de arquivo
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -609,7 +602,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       if (userIds.length > 0) {
         fetchOnlineStatuses(userIds);
       }
-    }, 30000); // Atualizar a cada 30 segundos
+    }, 30000); 
 
     return () => clearInterval(interval);
   }, [isOpen, conversations, currentUser]);
@@ -617,7 +610,6 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
   useEffect(() => {
     if (!currentUser) return;
 
-    // Atualizar presença ao abrir o chat
     const updatePresence = async () => {
       try {
         await supabase
@@ -634,10 +626,8 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
 
     updatePresence();
 
-    // Atualizar a cada minuto enquanto o chat estiver aberto
     const presenceInterval = setInterval(updatePresence, 60000);
 
-    // Ao fechar o chat, marcar como offline
     return () => {
       clearInterval(presenceInterval);
       if (currentUser) {
@@ -687,7 +677,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-0 md:p-4">
-      {/* Overlay para upload de imagem */}
+   
       {uploadingImage && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-4 rounded-lg flex items-center gap-2">

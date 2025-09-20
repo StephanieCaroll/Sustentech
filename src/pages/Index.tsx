@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import Navigation from "@/components/Navigation";
 import CategoryFilter from "@/components/CategoryFilter";
 import ItemCard from "@/components/ItemCard";
@@ -180,6 +181,9 @@ const Index = () => {
         initialSellerId={selectedSellerId || undefined}
         initialItem={selectedItem}
       />
+
+    <Footer />
+
     </div>
   );
 };

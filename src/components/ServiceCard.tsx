@@ -11,9 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@radix-ui/react-dialog";
-import { DialogFooter,  DialogHeader } from "./ui/dialog";
+import { DialogFooter, DialogHeader } from "./ui/dialog";
+import { useNavigate } from "react-router-dom";
 
 interface UserProfile {
   name: string;
@@ -33,7 +33,7 @@ interface ServiceCardProps {
   service: ExtendedService;
   isFavorite?: boolean;
   onToggleFavorite?: (serviceId: string) => void;
-  onStartConversation?: (providerId: string, service: Service) => void;
+  onStartConversation?: (providerId: string, service: Service, message: string) => void;
   onUpdateService?: (updatedService: Service) => void;
   onDeleteService?: (serviceId: string) => void;
 }
@@ -60,6 +60,7 @@ const ServiceCard = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -207,8 +208,9 @@ const ServiceCard = ({
     };
   }, [isExpanded]);
 
-  const handleContact = (e: React.MouseEvent) => {
+  const handleContact = (e: React.MouseEvent, isQuoteRequest: boolean = false) => {
     e.stopPropagation();
+    console.log('handleContact chamado', { isQuoteRequest, user, isOwner });
     
     if (!user) {
       toast({
@@ -228,8 +230,25 @@ const ServiceCard = ({
       return;
     }
 
+    let messageText = "";
+    
+    if (isQuoteRequest) {
+      messageText = `Olá! Gostaria de solicitar um orçamento para o serviço "${service.name}". Poderia me fornecer mais detalhes sobre valores e disponibilidade?`;
+    } else {
+      messageText = `Olá! Tenho interesse no serviço "${service.name}". Poderia me dar mais informações?`;
+    }
+
+    console.log('Chamando onStartConversation:', { providerId: service.user_id, message: messageText });
+    
     if (onStartConversation) {
-      onStartConversation(service.user_id, service);
+      onStartConversation(service.user_id, service, messageText);
+    } else {
+      console.error('onStartConversation não está definido!');
+      toast({
+        title: "Erro",
+        description: "Função de conversa não disponível",
+        variant: "destructive"
+      });
     }
   };
 
@@ -319,7 +338,6 @@ const ServiceCard = ({
       }
   
       for (const imagePath of imagesToDelete) {
-
         if (!imagePath.startsWith('http://') && !imagePath.startsWith('https://')) {
           const { error: deleteError } = await supabase.storage
             .from('service-images')
@@ -512,12 +530,6 @@ const ServiceCard = ({
               >
                 <Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
               </Button>
-              
-              {isOwner && (
-                <>
-                 
-                </>
-              )}
             </div>
 
             <Badge 
@@ -592,7 +604,14 @@ const ServiceCard = ({
 
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-lg font-bold text-primary">{formatPrice(service.price_per_hour)}</span>
-                  <Button size="sm" className="bg-gradient-to-r from-primary to-primary-glow" onClick={handleContact}>
+                  <Button 
+                    size="sm" 
+                    className="bg-gradient-to-r from-primary to-primary-glow" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleContact(e, false);
+                    }}
+                  >
                     Contatar
                   </Button>
                 </div>
@@ -911,12 +930,16 @@ const ServiceCard = ({
                   <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
                     <Button 
                       className="bg-gradient-to-r from-primary to-primary-glow flex-1 py-3 text-base"
-                      onClick={handleContact}
+                      onClick={(e) => handleContact(e, false)}
                     >
                       <MessageCircle className="h-5 w-5 mr-2" />
                       Entrar em Contato
                     </Button>
-                    <Button variant="outline" className="flex-1 py-3">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 py-3"
+                      onClick={(e) => handleContact(e, true)}
+                    >
                       Solicitar Orçamento
                     </Button>
                   </div>

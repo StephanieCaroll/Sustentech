@@ -47,6 +47,27 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
   }, [isLiked]);
 
   useEffect(() => {
+    const checkIfLiked = async () => {
+      if (user) {
+        const { data } = await supabase
+          .from('favorites')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('item_id', item.id)
+          .single();
+        
+        setLiked(!!data);
+      }
+    };
+    
+    if (user) {
+      checkIfLiked();
+    } else {
+      setLiked(false);
+    }
+  }, [user, item.id]);
+
+  useEffect(() => {
     if (isExpanded) {
       const scrollY = window.scrollY;
       document.body.style.position = 'fixed';
@@ -122,6 +143,7 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
     setCurrentImageIndex(index);
   };
 
+  // Detectar cliques fora do card expandido
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isExpanded && cardRef.current && !cardRef.current.contains(event.target as Node)) {
@@ -162,8 +184,17 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
 
       setIsEditing(false);
       if (onUpdate) onUpdate();
+      toast({
+        title: "Sucesso",
+        description: "Item atualizado com sucesso",
+      });
     } catch (error) {
       console.error('Erro ao atualizar item:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o item",
+        variant: "destructive"
+      });
     } finally {
       setIsSaving(false);
     }
@@ -194,7 +225,11 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
     const file = e.target.files[0];
     
     if (!file.type.startsWith('image/')) {
-      alert('Por favor, selecione apenas arquivos de imagem');
+      toast({
+        title: "Erro",
+        description: "Por favor, selecione apenas arquivos de imagem",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -226,9 +261,18 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      
+      toast({
+        title: "Sucesso",
+        description: "Imagem adicionada com sucesso",
+      });
     } catch (error) {
       console.error('Erro ao fazer upload da imagem:', error);
-      alert('Erro ao fazer upload da imagem. Verifique se o bucket existe e as permissões estão configuradas.');
+      toast({
+        title: "Erro",
+        description: "Erro ao fazer upload da imagem. Verifique se o bucket existe e as permissões estão configuradas.",
+        variant: "destructive"
+      });
     } finally {
       setUploading(false);
     }
@@ -236,7 +280,11 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
 
   const handleRemoveImage = async (index: number) => {
     if (imageUrls.length <= 1) {
-      alert('O item deve ter pelo menos uma imagem');
+      toast({
+        title: "Atenção",
+        description: "O item deve ter pelo menos uma imagem",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -251,9 +299,7 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
         throw new Error('URL da imagem não contém o bucket esperado');
       }
       
-
       const filePath = pathParts.slice(bucketIndex + 1).join('/');
-
     
       const { error: removeError } = await supabase.storage
         .from('items') 
@@ -271,9 +317,18 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
       if (currentImageIndex >= newImageUrls.length) {
         setCurrentImageIndex(newImageUrls.length - 1);
       }
+      
+      toast({
+        title: "Sucesso",
+        description: "Imagem removida com sucesso",
+      });
     } catch (error) {
       console.error('Erro ao remover imagem:', error);
-      alert('Erro ao remover imagem. Tente novamente.');
+      toast({
+        title: "Erro",
+        description: "Erro ao remover imagem. Tente novamente.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -317,7 +372,7 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
 
     try {
       if (liked) {
-        // Remover dos favoritos
+        
         const { error } = await supabase
           .from('favorites')
           .delete()
@@ -332,7 +387,7 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
           description: "Item removido dos favoritos",
         });
       } else {
-        // Adicionar aos favoritos
+       
         const { error } = await supabase
           .from('favorites')
           .insert({
@@ -384,7 +439,6 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
     }
 
     try {
-
       const { data: existingItem } = await supabase
         .from('cart_items')
         .select('id, quantity')
@@ -393,7 +447,6 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
         .single();
 
       if (existingItem) {
-
         const { error } = await supabase
           .from('cart_items')
           .update({ quantity: existingItem.quantity + 1 })
@@ -406,7 +459,6 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
           description: "Quantidade atualizada no carrinho"
         });
       } else {
-
         const { error } = await supabase
           .from('cart_items')
           .insert({
