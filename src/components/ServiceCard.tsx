@@ -11,8 +11,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@radix-ui/react-dialog";
-import { DialogFooter, DialogHeader } from "./ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 
 interface UserProfile {
@@ -992,24 +998,24 @@ const ServiceCard = ({
         />
       )}
 
-      <Dialog open={isDeleting} onOpenChange={setIsDeleting}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar Exclusão</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja excluir este serviço? Esta ação não pode ser desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleting(false)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
-              Excluir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+     <Dialog open={isDeleting} onOpenChange={setIsDeleting}>
+  <DialogContent className="sm:max-w-[425px]">
+    <DialogHeader>
+      <DialogTitle>Confirmar Exclusão</DialogTitle>
+      <DialogDescription>
+        Tem certeza que deseja excluir este serviço? Esta ação não pode ser desfeita.
+      </DialogDescription>
+    </DialogHeader>
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setIsDeleting(false)}>
+        Cancelar
+      </Button>
+      <Button variant="destructive" onClick={confirmDelete}>
+        Excluir
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
     </div>
   );
 };

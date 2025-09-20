@@ -20,7 +20,6 @@ import Cart from "./Cart";
 import { useCartCount } from "@/hooks/useCartCount";
 import { Messages } from "./Message";
 import { supabase } from "@/integrations/supabase/client";
-const cartItemCount = useCartCount();
 
 interface HeaderProps {
   searchTerm: string;
@@ -144,7 +143,6 @@ const Header = ({
           <div className="flex items-center space-x-2 shrink-0">
             {user ? (
               <>
-             
                 <Button
                   variant="ghost"
                   size="icon"
