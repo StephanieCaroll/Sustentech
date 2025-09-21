@@ -43,7 +43,7 @@ interface FormattedConversation {
 
 interface MessagesProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: ()  => void;
   initialSellerId?: string;
   initialItem?: any;
 }
@@ -67,16 +67,17 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
   const [showConversationList, setShowConversationList] = useState(true);
   const [onlineStatus, setOnlineStatus] = useState<OnlineStatus>({});
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showInitialChat, setShowInitialChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const ensureUserProfile = async (userId: string): Promise<boolean> => {
     try {
-      const { data: existingProfile } = await supabase
+      const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
         .select('id')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (existingProfile) return true;
 
@@ -123,70 +124,11 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
     }
   };
 
-  const checkOnlineStatus = async (userId: string): Promise<boolean> => {
-    try {
-      const { data: presenceData, error: presenceError } = await supabase
-        .from('user_presence')
-        .select('is_online, last_seen')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (!presenceError && presenceData) {
-        if (presenceData.is_online) {
-          return true;
-        }
-        if (presenceData.last_seen) {
-          const lastSeen = new Date(presenceData.last_seen);
-          const now = new Date();
-          const diffInMinutes = (now.getTime() - lastSeen.getTime()) / (1000 * 60);
-          return diffInMinutes < 2;
-        }
-      }
-
-      const { data: lastActivity } = await supabase
-        .from('messages')
-        .select('created_at')
-        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (lastActivity) {
-        const lastActivityDate = new Date(lastActivity.created_at);
-        const now = new Date();
-        const diffInMinutes = (now.getTime() - lastActivityDate.getTime()) / (1000 * 60);
-        return diffInMinutes < 5;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('Erro ao verificar status online:', error);
-      return false;
-    }
-  };
-
-  const fetchOnlineStatuses = async (userIds: string[]) => {
-    const statuses: OnlineStatus = {};
-    const promises = userIds.map(async (userId) => {
-      if (userId !== currentUser?.id) {
-        try {
-          const isOnline = await checkOnlineStatus(userId);
-          statuses[userId] = isOnline;
-        } catch (error) {
-          console.error(`Erro ao verificar status para usuário ${userId}:`, error);
-          statuses[userId] = false;
-        }
-      }
-    });
-    
-    await Promise.all(promises);
-    setOnlineStatus(prev => ({ ...prev, ...statuses }));
-  };
-
   const createConversation = async (sellerId: string) => {
     if (!currentUser) return null;
     
     try {
+     
       const { data: existingConversations, error: checkError } = await supabase
         .from('conversations')
         .select('id, participant1, participant2')
@@ -241,7 +183,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       
       const { data: conversationsData, error: conversationsError } = await supabase
         .from('conversations')
-        .select('id, participant1, participant2, last_message_id, created_at')
+        .select('id, participant1, participant2, created_at')
         .or(`participant1.eq.${currentUser.id},participant2.eq.${currentUser.id}`)
         .order('created_at', { ascending: false });
 
@@ -254,14 +196,12 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       }
 
       const formattedConversations: FormattedConversation[] = [];
-      const userIdsToCheck: string[] = [];
       
       for (const conv of conversationsData) {
         try {
           const otherParticipantId = conv.participant1 === currentUser.id ? conv.participant2 : conv.participant1;
           const participant = await fetchProfile(otherParticipantId);
-          userIdsToCheck.push(otherParticipantId);
-          
+        
           const { data: lastMessageData } = await supabase
             .from('messages')
             .select('*')
@@ -295,9 +235,6 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       
       setConversations(formattedConversations);
       
-      if (userIdsToCheck.length > 0) {
-        fetchOnlineStatuses(userIdsToCheck);
-      }
     } catch (error) {
       console.error('Erro ao buscar conversas:', error);
       toast({
@@ -328,18 +265,6 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       const conversation = conversations.find(c => c.id === conversationId);
       if (conversation) {
         setActiveParticipant(conversation.participant);
-        
-        if (conversation.participant.user_id !== currentUser?.id) {
-          try {
-            const isOnline = await checkOnlineStatus(conversation.participant.user_id);
-            setOnlineStatus(prev => ({
-              ...prev,
-              [conversation.participant.user_id]: isOnline
-            }));
-          } catch (error) {
-            console.error('Erro ao verificar status online:', error);
-          }
-        }
       }
 
       if (window.innerWidth < 768) {
@@ -366,51 +291,44 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
     }
   };
 
-  const uploadImage = async (file: File): Promise<string | null> => {
-    try {
-      setUploadingImage(true);
-   
-      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-      
-      if (bucketsError) {
-        console.error('Erro ao listar buckets:', bucketsError);
-        throw new Error('Não foi possível acessar o armazenamento');
-      }
-      
-      const targetBucket = buckets?.find(bucket => 
-        bucket.name === 'messages' || bucket.name === 'message-images'
-      );
+  const sendMessageDirectly = async (content: string, conversationId: string, receiverId: string) => {
+    if (!currentUser) return;
     
-      const bucketName = targetBucket?.name || 'messages';
+    try {
+      const { data: messageData, error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          content: content,
+          sender_id: currentUser.id,
+          receiver_id: receiverId,
+          conversation_id: conversationId,
+          read: false,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
       
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = fileName;
-
-      const { error: uploadError } = await supabase.storage
-        .from(bucketName)
-        .upload(filePath, file);
-
-      if (uploadError) {
-        console.error('Erro no upload:', uploadError);
-        throw new Error('Falha no upload da imagem');
+      if (messageError) {
+        console.error('Erro ao enviar mensagem:', messageError);
+        throw messageError;
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(filePath);
-
-      return publicUrl;
+      await supabase
+        .from('conversations')
+        .update({ 
+          last_message_id: messageData.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', conversationId);
+     
+      setMessages(prev => [...prev, messageData]);
+      setInitialMessageSent(true);
+      
+      console.log('Mensagem enviada com sucesso:', content);
+      
     } catch (error) {
-      console.error('Erro ao fazer upload da imagem:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível enviar a imagem. Verifique se o bucket 'messages' existe no Supabase Storage.",
-        variant: "destructive"
-      });
-      return null;
-    } finally {
-      setUploadingImage(false);
+      console.error('Erro ao enviar mensagem:', error);
+      throw error;
     }
   };
 
@@ -424,43 +342,13 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       const conversation = conversations.find(c => c.id === activeConversation);
       if (!conversation) return;
       
-      const receiverId = conversation.participant.user_id;
-      
-      const { data: messageData, error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          content: messageContent,
-          sender_id: currentUser.id,
-          receiver_id: receiverId,
-          conversation_id: activeConversation,
-          read: false,
-          created_at: new Date().toISOString(),
-          image_url: imageUrl || null
-        })
-        .select()
-        .single();
-      
-      if (messageError) {
-        console.error('Erro ao enviar mensagem:', messageError);
-        throw messageError;
-      }
-  
-      await supabase
-        .from('conversations')
-        .update({ 
-          last_message_id: messageData.id,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', activeConversation);
+      await sendMessageDirectly(
+        messageContent, 
+        activeConversation, 
+        conversation.participant.user_id
+      );
       
       setNewMessage("");
-      setMessages(prev => [...prev, messageData]);
-      
-      if (content) {
-        setInitialMessageSent(true);
-      }
- 
-      fetchConversations();
       
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
@@ -496,10 +384,10 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       return;
     }
 
-    const imageUrl = await uploadImage(file);
-    if (imageUrl) {
-      await sendMessage("", imageUrl);
-    }
+    toast({
+      title: "Upload de imagem",
+      description: "Upload de imagens será implementado em breve",
+    });
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -507,20 +395,40 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
   };
 
   const startConversationWithSeller = async (sellerId: string, item: any) => {
-    if (!currentUser) return;
+    if (!currentUser || !sellerId) return;
     
     setCreatingConversation(true);
     try {
+      console.log('Iniciando conversa com seller:', sellerId, 'Item:', item);
+      
       const conversationId = await createConversation(sellerId);
       
       if (conversationId) {
-        await fetchConversations();
+        console.log('Conversa criada:', conversationId);
+      
+        const sellerProfile = await fetchProfile(sellerId);
+        setActiveParticipant(sellerProfile);
         setActiveConversation(conversationId);
+       
+        await fetchConversations();
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+       
+        if (item && !initialMessageSent) {
+          const initialMessage = item.isItem 
+            ? `Gostaria de Comprar o ${item.title}`
+            : `Gostaria de Contatar o serviço ${item.title}`;
+          
+          console.log('Enviando mensagem inicial:', initialMessage);
+          
+          await sendMessageDirectly(initialMessage, conversationId, sellerId);
+          console.log('Mensagem inicial enviada com sucesso');
+        }
+        
         await fetchMessages(conversationId);
         
-        if (item && !initialMessageSent) {
-          const initialMessage = `Olá! Tenho interesse no item "${item.title}" que você está vendendo por R$ ${item.price?.toFixed(2) || '0,00'}. Podemos conversar sobre isso?`;
-          await sendMessage(initialMessage);
+        if (window.innerWidth < 768) {
+          setShowConversationList(false);
         }
       }
     } catch (error) {
@@ -536,45 +444,16 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
   };
 
   useEffect(() => {
-    if (!currentUser) return;
-    
-    const subscription = supabase
-      .channel('messages-changes')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `receiver_id=eq.${currentUser.id}`
-      }, (payload) => {
-        if (payload.new.conversation_id === activeConversation) {
-          setMessages(prev => [...prev, payload.new as Message]);
-        }
-        fetchConversations();
-      })
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `sender_id=eq.${currentUser.id}`
-      }, (payload) => {
-        if (payload.new.conversation_id === activeConversation) {
-          setMessages(prev => [...prev, payload.new as Message]);
-        }
-        fetchConversations();
-      })
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [currentUser, activeConversation]);
-
-  useEffect(() => {
     if (isOpen && currentUser) {
       fetchConversations();
       
       if (initialSellerId && initialItem) {
-        startConversationWithSeller(initialSellerId, initialItem);
+        setShowInitialChat(true);
+        console.log('Iniciando conversa automática com:', initialSellerId, initialItem);
+        
+        setTimeout(() => {
+          startConversationWithSeller(initialSellerId, initialItem);
+        }, 1000);
       }
     }
   }, [isOpen, currentUser, initialSellerId, initialItem]);
@@ -591,71 +470,39 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       setInitialMessageSent(false);
       setActiveParticipant(null);
       setShowConversationList(true);
+      setShowInitialChat(false);
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen || !currentUser) return;
-
-    const interval = setInterval(() => {
-      const userIds = conversations.map(conv => conv.participant.user_id);
-      if (userIds.length > 0) {
-        fetchOnlineStatuses(userIds);
-      }
-    }, 30000); 
-
-    return () => clearInterval(interval);
-  }, [isOpen, conversations, currentUser]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const updatePresence = async () => {
-      try {
-        await supabase
-          .from('user_presence')
-          .upsert({
-            user_id: currentUser.id,
-            is_online: true,
-            last_seen: new Date().toISOString()
-          });
-      } catch (error) {
-        console.error('Erro ao atualizar presença:', error);
-      }
-    };
-
-    updatePresence();
-
-    const presenceInterval = setInterval(updatePresence, 60000);
-
-    return () => {
-      clearInterval(presenceInterval);
-      if (currentUser) {
-        supabase
-          .from('user_presence')
-          .upsert({
-            user_id: currentUser.id,
-            is_online: false,
-            last_seen: new Date().toISOString()
-          })
-          .then(({ error }) => {
-            if (error) console.error('Erro ao marcar como offline:', error);
-          });
-      }
-    };
-  }, [currentUser, isOpen]);
-
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
-    if (diffInHours < 24) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (diffInHours < 48) {
-      return 'Ontem';
-    } else {
-      return date.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffInMinutes = (now.getTime() - date.getTime()) / (1000 * 60);
+      
+      if (diffInMinutes < 1) {
+        return 'Agora';
+      } else if (diffInMinutes < 60) {
+        return `${Math.floor(diffInMinutes)}min`;
+      } else if (diffInMinutes < 1440) {
+        const hours = Math.floor(diffInMinutes / 60);
+        return `${hours}h`;
+      } else if (diffInMinutes < 2880) {
+        return 'Ontem';
+      } else {
+        return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      }
+    } catch (error) {
+      return '';
+    }
+  };
+
+  const formatMessageTime = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch (error) {
+      return '';
     }
   };
 
@@ -665,30 +512,11 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
     setActiveParticipant(null);
   };
 
-  const getStatusText = (userId: string) => {
-    if (userId === currentUser?.id) return "Você";
-    
-    const isOnline = onlineStatus[userId];
-    if (isOnline === undefined) return "Verificando...";
-    return isOnline ? "Online" : "Offline";
-  };
-
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-0 md:p-4">
-   
-      {uploadingImage && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg flex items-center gap-2">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span>Enviando imagem...</span>
-          </div>
-        </div>
-      )}
-      
       <div className="bg-background border rounded-lg shadow-lg flex flex-col w-full h-full md:max-w-4xl md:max-h-[90vh] md:h-auto">
-      
         <div className="flex items-center justify-between p-4 border-b">
           {!showConversationList && activeParticipant ? (
             <div className="flex items-center gap-3">
@@ -704,7 +532,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
               <div>
                 <p className="font-medium">{activeParticipant.name || 'Usuário'}</p>
                 <p className="text-xs text-muted-foreground">
-                  {getStatusText(activeParticipant.user_id)}
+                  {activeParticipant.user_id === currentUser?.id ? "Você" : "Online"}
                 </p>
               </div>
             </div>
@@ -754,19 +582,13 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
                             {conversation.participant.name || 'Usuário'}
                           </p>
                           {conversation.last_message && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
                               {formatTime(conversation.last_message.created_at)}
                             </span>
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground truncate mt-1">
-                          {conversation.last_message?.image_url 
-                            ? "📷 Imagem" 
-                            : conversation.last_message?.content || "Nenhua mensagem ainda"
-                          }
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {getStatusText(conversation.participant.user_id)}
+                          {conversation.last_message?.content || "Nenhuma mensagem ainda"}
                         </p>
                       </div>
                       {conversation.unread_count > 0 && (
@@ -781,7 +603,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
             </div>
           )}
 
-          {(activeConversation || window.innerWidth >= 768) && (
+          {(activeConversation || window.innerWidth >= 768 || showInitialChat) && (
             <div className="w-full md:w-2/3 flex flex-col">
               {activeConversation && activeParticipant ? (
                 <>
@@ -789,33 +611,18 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
                     {messages.length === 0 ? (
                       <div className="text-center py-12">
                         <p className="text-sm text-muted-foreground mt-2">
-                          Envie uma mensagem para iniciar a conversa
+                          {creatingConversation ? "Iniciando conversa..." : "Envie uma mensagem para iniciar a conversa"}
                         </p>
                       </div>
                     ) : (
-                      messages.map((message, index) => {
+                      messages.map((message) => {
                         const isOwn = message.sender_id === currentUser?.id;
-                        const showAvatar = !isOwn && (
-                          index === messages.length - 1 ||
-                          messages[index + 1]?.sender_id !== message.sender_id
-                        );
 
                         return (
                           <div
                             key={message.id}
                             className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}
                           >
-                            {!isOwn && showAvatar && (
-                              <Avatar className="h-6 w-6">
-                                <AvatarImage src={activeParticipant.avatar_url} />
-                                <AvatarFallback className="text-xs">
-                                  {activeParticipant.name?.[0]?.toUpperCase() || 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                            )}
-                            {!isOwn && !showAvatar && (
-                              <div className="w-6" />
-                            )}
                             <div
                               className={`max-w-xs p-3 rounded-2xl ${
                                 isOwn
@@ -823,20 +630,9 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
                                   : "bg-background border rounded-bl-md"
                               }`}
                             >
-                              {message.image_url && (
-                                <div className="mb-2">
-                                  <img 
-                                    src={message.image_url} 
-                                    alt="Imagem da mensagem" 
-                                    className="rounded-md max-w-full h-auto max-h-48 object-cover"
-                                  />
-                                </div>
-                              )}
-                              {message.content && (
-                                <p className="text-sm">{message.content}</p>
-                              )}
-                              <p className={`text-xs mt-1 ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                                {formatTime(message.created_at)}
+                              <p className="text-sm">{message.content}</p>
+                              <p className={`text-xs mt-1 ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"} whitespace-nowrap`}>
+                                {formatMessageTime(message.created_at)}
                               </p>
                             </div>
                           </div>
@@ -860,13 +656,9 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
                         size="icon" 
                         className="h-10 w-10"
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingImage || isSending || creatingConversation}
+                        disabled={isSending || creatingConversation}
                       >
-                        {uploadingImage ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <ImageIcon className="h-5 w-5" />
-                        )}
+                        <ImageIcon className="h-5 w-5" />
                       </Button>
                       <Input
                         placeholder="Digite uma mensagem..."
@@ -878,13 +670,13 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
                             sendMessage();
                           }
                         }}
-                        disabled={isSending || creatingConversation || uploadingImage}
+                        disabled={isSending || creatingConversation}
                         className="flex-1"
                       />
                       <Button
                         size="icon"
                         onClick={() => sendMessage()}
-                        disabled={(!newMessage.trim() && !uploadingImage) || isSending || creatingConversation}
+                        disabled={!newMessage.trim() || isSending || creatingConversation}
                         className="h-10 w-10"
                       >
                         {isSending ? (

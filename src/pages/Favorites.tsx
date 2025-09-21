@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, Package, Wrench, ArrowLeft, Trash2, X } from "lucide-react";
+import { Heart, Package, Wrench, ArrowLeft, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { Messages } from "@/components/Message"; 
 
 interface FavoriteItem {
   id: string;
@@ -48,6 +49,9 @@ const Favorites = () => {
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<FavoriteItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMessagesOpen, setIsMessagesOpen] = useState(false);
+  const [messageSellerId, setMessageSellerId] = useState<string>("");
+  const [messageItem, setMessageItem] = useState<any>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -185,6 +189,28 @@ const Favorites = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedItem(null);
+  };
+
+  const handleContact = () => {
+    if (!selectedItem) return;
+    
+    const isItem = !!selectedItem.item_id;
+    const itemName = selectedItem.items?.title || selectedItem.services?.name;
+    const sellerId = selectedItem.items?.user_id || selectedItem.services?.user_id;
+    
+    // Criar objeto com informações para a mensagem inicial
+    const messageItem = {
+      title: selectedItem.items?.title || selectedItem.services?.name,
+      price: selectedItem.items?.price || selectedItem.services?.price_per_hour,
+      isItem: isItem
+    };
+    
+    // Configurar e abrir o modal de mensagens
+    setMessageSellerId(sellerId);
+    setMessageItem(messageItem);
+    setIsMessagesOpen(true);
+    
+    closeModal();
   };
 
   const favoriteItems = favorites.filter(fav => fav.item_id);
@@ -364,11 +390,8 @@ const Favorites = () => {
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
-                <span>Detalhes do {selectedItem?.item_id ? 'Item' : 'Serviço'}</span>
-                <Button variant="ghost" size="icon" onClick={closeModal}>
-                  <X className="h-4 w-4" />
-                </Button>
+              <DialogTitle>
+                Detalhes do {selectedItem?.item_id ? 'Item' : 'Serviço'}
               </DialogTitle>
             </DialogHeader>
 
@@ -455,9 +478,8 @@ const Favorites = () => {
                     >
                       Fechar
                     </Button>
-                    <Button 
-                     >
-                      Comprar
+                    <Button onClick={handleContact}>
+                      {selectedItem.item_id ? "Comprar" : "Contatar Serviço"}
                     </Button>
                   </div>
                 </div>
@@ -465,6 +487,13 @@ const Favorites = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        <Messages 
+          isOpen={isMessagesOpen} 
+          onClose={() => setIsMessagesOpen(false)}
+          initialSellerId={messageSellerId}
+          initialItem={messageItem}
+        />
       </div>
     </div>
   );
