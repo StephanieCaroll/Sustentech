@@ -331,31 +331,31 @@ const ItemCard = ({ item, isLiked = false, onUpdate, onStartConversation, onCart
     }
   };
 
-  const handleBuyNow = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    if (!user) {
-      toast({
-        title: "Atenção",
-        description: "Você precisa estar logado para comprar itens",
-        variant: "destructive"
-      });
-      return;
-    }
+ const handleBuyNow = async (e: React.MouseEvent) => {
+  e.stopPropagation();
+  
+  if (!user) {
+    toast({
+      title: "Atenção",
+      description: "Você precisa estar logado para comprar itens",
+      variant: "destructive"
+    });
+    return;
+  }
 
-    if (isOwner) {
-      toast({
-        title: "Atenção",
-        description: "Você não pode comprar seu próprio item",
-        variant: "destructive"
-      });
-      return;
-    }
+  if (isOwner) {
+    toast({
+      title: "Atenção",
+      description: "Você não pode comprar seu próprio item",
+      variant: "destructive"
+    });
+    return;
+  }
 
-    if (onStartConversation) {
-      onStartConversation(item.user_id, item);
-    }
-  };
+  if (onStartConversation) {
+    onStartConversation(item.user_id, item);
+  }
+};
 
   const toggleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();

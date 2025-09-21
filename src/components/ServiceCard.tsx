@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Messages } from "@/components/Message"; 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -58,6 +59,10 @@ const ServiceCard = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isMessagesOpen, setIsMessagesOpen] = useState(false);
+  const [selectedSellerId, setSelectedSellerId] = useState<string>("");
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [initialMessage, setInitialMessage] = useState("");
   const [newImages, setNewImages] = useState<File[]>([]);
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -220,89 +225,87 @@ const ServiceCard = ({
   }, [isExpanded]);
 
   const toggleFavorite = async (e: React.MouseEvent) => {
-  e.stopPropagation();
+    e.stopPropagation();
 
-  if (!user) {
-    toast({
-      title: "Atenção",
-      description: "Você precisa estar logado para favoritar serviços",
-      variant: "destructive"
-    });
-    return;
-  }
-
-  try {
-    if (isFavorite) {
-      const { error } = await supabase
-        .from('favorites')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('service_id', service.id);
-
-      if (error) {
-        console.error('Erro ao remover favorito:', error);
-        if (error.code === 'PGRST116' || error.message?.includes('found')) {
-          setIsFavorite(false);
-          return;
-        }
-        throw error;
-      }
-
-      setIsFavorite(false);
+    if (!user) {
       toast({
-        title: "Removido",
-        description: "Serviço removido dos favoritos",
+        title: "Atenção",
+        description: "Você precisa estar logado para favoritar serviços",
+        variant: "destructive"
       });
-    } else {
-  
-      const { error } = await supabase
-        .from('favorites')
-        .insert({
-          user_id: user.id,
-          service_id: service.id, 
-          item_id: null, 
-          created_at: new Date().toISOString()
+      return;
+    }
+
+    try {
+      if (isFavorite) {
+        const { error } = await supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('service_id', service.id);
+
+        if (error) {
+          console.error('Erro ao remover favorito:', error);
+          if (error.code === 'PGRST116' || error.message?.includes('found')) {
+            setIsFavorite(false);
+            return;
+          }
+          throw error;
+        }
+
+        setIsFavorite(false);
+        toast({
+          title: "Removido",
+          description: "Serviço removido dos favoritos",
         });
+      } else {
+        const { error } = await supabase
+          .from('favorites')
+          .insert({
+            user_id: user.id,
+            service_id: service.id, 
+            item_id: null, 
+            created_at: new Date().toISOString()
+          });
 
-      if (error) {
-        console.error('Erro ao adicionar favorito:', error);
-       
-        if (error.code === '23505' || error.message?.includes('unique')) {
-          setIsFavorite(true);
-          return;
+        if (error) {
+          console.error('Erro ao adicionar favorito:', error);
+          if (error.code === '23505' || error.message?.includes('unique')) {
+            setIsFavorite(true);
+            return;
+          }
+          throw error;
         }
-        throw error;
+
+        setIsFavorite(true);
+        toast({
+          title: "Adicionado",
+          description: "Serviço adicionado aos favoritos",
+        });
       }
 
-      setIsFavorite(true);
+      if (onFavoriteUpdate) {
+        onFavoriteUpdate();
+      }
+    } catch (error: any) {
+      console.error('Erro ao atualizar favoritos:', error);
+      
+      let errorMessage = "Não foi possível atualizar os favoritos";
+      if (error?.code === '23505') {
+        errorMessage = "Este serviço já está nos seus favoritos";
+      } else if (error?.code === 'PGRST116') {
+        errorMessage = "Favorito não encontrado";
+      } else if (error?.code === '23514') {
+        errorMessage = "Erro de constraint - verifique si está tentando favoritar um item e um serviço ao mesmo tempo";
+      }
+
       toast({
-        title: "Adicionado",
-        description: "Serviço adicionado aos favoritos",
+        title: "Erro",
+        description: errorMessage,
+        variant: "destructive"
       });
     }
-
-    if (onFavoriteUpdate) {
-      onFavoriteUpdate();
-    }
-  } catch (error: any) {
-    console.error('Erro ao atualizar favoritos:', error);
-    
-    let errorMessage = "Não foi possível atualizar os favoritos";
-    if (error?.code === '23505') {
-      errorMessage = "Este serviço já está nos seus favoritos";
-    } else if (error?.code === 'PGRST116') {
-      errorMessage = "Favorito não encontrado";
-    } else if (error?.code === '23514') {
-      errorMessage = "Erro de constraint - verifique se está tentando favoritar um item e um serviço ao mesmo tempo";
-    }
-
-    toast({
-      title: "Erro",
-      description: errorMessage,
-      variant: "destructive"
-    });
-  }
-};
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -388,7 +391,6 @@ const ServiceCard = ({
   const saveChanges = async () => {
     setIsSaving(true);
     try {
-     
       const uploadedImagePaths = [...service.images || []];
       
       for (const file of newImages) {
@@ -457,40 +459,33 @@ const ServiceCard = ({
     setImagesToDelete([]);
   };
 
-  const handleContact = (e: React.MouseEvent, isBudgetRequest: boolean) => {
-    e.stopPropagation();
-    
-    if (!user) {
-      toast({
-        title: "Atenção",
-        description: "Você precisa estar logado para entrar em contato",
-        variant: "destructive"
-      });
-      navigate('/login');
-      return;
-    }
-
-    if (onStartConversation) {
-      const defaultMessage = isBudgetRequest 
-        ? `Olá! Gostaria de solicitar um orçamento para o serviço: ${service.name}`
-        : `Olá! Tenho interesse no seu serviço: ${service.name}`;
-      
-      onStartConversation(service.user_id, service, defaultMessage);
-    }
-  };
-
-  if (loadingImages) {
-    return (
-      <Card className="w-full max-w-full overflow-hidden">
-        <div className="aspect-square bg-muted animate-pulse" />
-        <CardContent className="p-4 space-y-3">
-          <div className="h-4 bg-muted rounded animate-pulse" />
-          <div className="h-3 bg-muted rounded animate-pulse w-2/3" />
-          <div className="h-3 bg-muted rounded animate-pulse w-1/2" />
-        </CardContent>
-      </Card>
-    );
+  const handleContact = (e: React.MouseEvent, contactType: 'contact' | 'budget') => {
+  e.stopPropagation();
+  
+  if (!user) {
+    toast({
+      title: "Atenção",
+      description: "Você precisa estar logado para entrar em contato",
+      variant: "destructive"
+    });
+    navigate('/login');
+    return;
   }
+
+  const message = ""; 
+
+
+  if (onStartConversation) {
+    onStartConversation(service.user_id, service, message);
+    return;
+  }
+
+
+  setSelectedSellerId(service.user_id);
+  setSelectedService(service);
+  setInitialMessage(message); 
+  setIsMessagesOpen(true);
+};
 
   const hasMultipleImages = imageUrls.length > 1;
   const currentImage = imageUrls[currentImageIndex] || getDefaultImage();
@@ -648,7 +643,7 @@ const ServiceCard = ({
                     className="bg-gradient-to-r from-primary to-primary-glow" 
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleContact(e, false);
+                      handleContact(e, 'contact');
                     }}
                   >
                     Contatar
@@ -921,7 +916,7 @@ const ServiceCard = ({
 
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-2">Descrição do Serviço</h4>
-                                   {isEditing ? (
+                  {isEditing ? (
                     <Textarea
                       name="description"
                       value={formData.description}
@@ -966,11 +961,11 @@ const ServiceCard = ({
                   </div>
                 </div>
               
-                {!isOwner && (
+                                {!isOwner && (
                   <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
                     <Button 
                       className="bg-gradient-to-r from-primary to-primary-glow flex-1 py-3 text-base"
-                      onClick={(e) => handleContact(e, false)}
+                      onClick={(e) => handleContact(e, 'contact')}
                     >
                       <MessageCircle className="h-5 w-5 mr-2" />
                       Entrar em Contato
@@ -978,7 +973,7 @@ const ServiceCard = ({
                     <Button 
                       variant="outline" 
                       className="flex-1 py-3"
-                      onClick={(e) => handleContact(e, true)}
+                      onClick={(e) => handleContact(e, 'budget')}
                     >
                       Solicitar Orçamento
                     </Button>
@@ -1050,6 +1045,16 @@ const ServiceCard = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {isMessagesOpen && (
+        <Messages
+          isOpen={isMessagesOpen}
+          onClose={() => setIsMessagesOpen(false)}
+          initialSellerId={selectedSellerId}
+          initialItem={selectedService}
+          initialMessage={initialMessage}
+        />
+      )}
     </div>
   );
 };

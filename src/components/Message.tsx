@@ -42,17 +42,18 @@ interface FormattedConversation {
 }
 
 interface MessagesProps {
-  isOpen: boolean;
-  onClose: ()  => void;
+   isOpen: boolean;
+  onClose: () => void;
   initialSellerId?: string;
   initialItem?: any;
+  initialMessage?: string;
 }
 
 interface OnlineStatus {
   [userId: string]: boolean;
 }
 
-export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: MessagesProps) => {
+export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initialMessage }: MessagesProps) => {
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const [conversations, setConversations] = useState<FormattedConversation[]>([]);
@@ -68,6 +69,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
   const [onlineStatus, setOnlineStatus] = useState<OnlineStatus>({});
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showInitialChat, setShowInitialChat] = useState(false);
+  const hasAutoMessageSentRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -128,7 +130,6 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
     if (!currentUser) return null;
     
     try {
-     
       const { data: existingConversations, error: checkError } = await supabase
         .from('conversations')
         .select('id, participant1, participant2')
@@ -201,7 +202,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
         try {
           const otherParticipantId = conv.participant1 === currentUser.id ? conv.participant2 : conv.participant1;
           const participant = await fetchProfile(otherParticipantId);
-        
+          
           const { data: lastMessageData } = await supabase
             .from('messages')
             .select('*')
@@ -239,7 +240,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       console.error('Erro ao buscar conversas:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível carregar as conversas",
+        description: "Não foi possível carregar das conversas",
         variant: "destructive"
       });
     } finally {
@@ -291,18 +292,71 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
     }
   };
 
-  const sendMessageDirectly = async (content: string, conversationId: string, receiverId: string) => {
-    if (!currentUser) return;
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      let { error: uploadError } = await supabase.storage
+        .from('message-images')
+        .upload(filePath, file);
+
+      if (uploadError && uploadError.message.includes('Bucket not found')) {
+        console.log('Bucket message-images não encontrado, tentando images...');
+        ({ error: uploadError } = await supabase.storage
+          .from('images')
+          .upload(filePath, file));
+      }
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('message-images')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error: any) {
+      console.error('Erro no upload da imagem:', error);
+      
+      if (error.message?.includes('Bucket not found')) {
+        toast({
+          title: "Bucket não configurado",
+          description: "O bucket de imagens não está configurado. Contate o administrador.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Erro no upload",
+          description: "Não foi possível fazer upload da imagem",
+          variant: "destructive"
+        });
+      }
+      return null;
+    }
+  };
+
+  const sendMessage = async (content?: string, imageUrl?: string) => {
+    const messageContent = content || newMessage.trim();
+    if ((!messageContent && !imageUrl) || !activeConversation || !currentUser) return;
     
     try {
+      setIsSending(true);
+      
+      const conversation = conversations.find(c => c.id === activeConversation);
+      if (!conversation) return;
+      
       const { data: messageData, error: messageError } = await supabase
         .from('messages')
         .insert({
-          content: content,
+          content: messageContent,
           sender_id: currentUser.id,
-          receiver_id: receiverId,
-          conversation_id: conversationId,
+          receiver_id: conversation.participant.user_id,
+          conversation_id: activeConversation,
           read: false,
+          image_url: imageUrl || null,
           created_at: new Date().toISOString()
         })
         .select()
@@ -319,36 +373,11 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
           last_message_id: messageData.id,
           updated_at: new Date().toISOString()
         })
-        .eq('id', conversationId);
-     
+        .eq('id', activeConversation);
+      
       setMessages(prev => [...prev, messageData]);
-      setInitialMessageSent(true);
-      
-      console.log('Mensagem enviada com sucesso:', content);
-      
-    } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
-      throw error;
-    }
-  };
-
-  const sendMessage = async (content?: string, imageUrl?: string) => {
-    const messageContent = content || newMessage.trim();
-    if ((!messageContent && !imageUrl) || !activeConversation || !currentUser) return;
-    
-    try {
-      setIsSending(true);
-      
-      const conversation = conversations.find(c => c.id === activeConversation);
-      if (!conversation) return;
-      
-      await sendMessageDirectly(
-        messageContent, 
-        activeConversation, 
-        conversation.participant.user_id
-      );
-      
       setNewMessage("");
+      setInitialMessageSent(true);
       
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
@@ -384,76 +413,156 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       return;
     }
 
-    toast({
-      title: "Upload de imagem",
-      description: "Upload de imagens será implementado em breve",
-    });
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const startConversationWithSeller = async (sellerId: string, item: any) => {
-    if (!currentUser || !sellerId) return;
-    
-    setCreatingConversation(true);
     try {
-      console.log('Iniciando conversa com seller:', sellerId, 'Item:', item);
+      setUploadingImage(true);
+      const imageUrl = await uploadImage(file);
       
-      const conversationId = await createConversation(sellerId);
-      
-      if (conversationId) {
-        console.log('Conversa criada:', conversationId);
-      
-        const sellerProfile = await fetchProfile(sellerId);
-        setActiveParticipant(sellerProfile);
-        setActiveConversation(conversationId);
-       
-        await fetchConversations();
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-       
-        if (item && !initialMessageSent) {
-          const initialMessage = item.isItem 
-            ? `Gostaria de Comprar o ${item.title}`
-            : `Gostaria de Contatar o serviço ${item.title}`;
-          
-          console.log('Enviando mensagem inicial:', initialMessage);
-          
-          await sendMessageDirectly(initialMessage, conversationId, sellerId);
-          console.log('Mensagem inicial enviada com sucesso');
-        }
-        
-        await fetchMessages(conversationId);
-        
-        if (window.innerWidth < 768) {
-          setShowConversationList(false);
-        }
+      if (imageUrl) {
+        await sendMessage('', imageUrl);
+        toast({
+          title: "Sucesso",
+          description: "Imagem enviada com sucesso!",
+        });
       }
     } catch (error) {
-      console.error('Erro ao iniciar conversa:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível iniciar a conversa com o vendedor",
-        variant: "destructive"
-      });
+      console.error('Erro ao enviar imagem:', error);
     } finally {
-      setCreatingConversation(false);
+      setUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
+const startConversationWithSeller = async (sellerId: string, item: any) => {
+  if (!currentUser || !sellerId || hasAutoMessageSentRef.current) return;
+  
+  setCreatingConversation(true);
+  try {
+    const conversationId = await createConversation(sellerId);
+    
+    if (conversationId) {
+      const sellerProfile = await fetchProfile(sellerId);
+      setActiveParticipant(sellerProfile);
+      setActiveConversation(conversationId);
+      
+      hasAutoMessageSentRef.current = true;
+   
+      let itemName = 'este produto/serviço';
+      
+      if (item) {
+        if (item.name) itemName = item.name;
+        else if (item.title) itemName = item.title;
+        else if (item.nome) itemName = item.nome;
+        else if (typeof item === 'object' && item.name) itemName = item.name;
+      }
+      
+      const messageToSend = initialMessage || `Olá! Gostaria de mais informações sobre: ${itemName}`;
+     
+      await sendAutoMessage(conversationId, sellerId, messageToSend);
+      
+      await fetchMessages(conversationId);
+      
+      if (window.innerWidth < 768) {
+        setShowConversationList(false);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erro ao iniciar conversa:', error);
+    toast({
+      title: "Erro",
+      description: "Não foi possível iniciar a conversa",
+      variant: "destructive"
+    });
+  } finally {
+    setCreatingConversation(false);
+  }
+};
+
+const sendAutoMessage = async (conversationId: string, receiverId: string, content: string) => {
+  if (!currentUser) return;
+  
+  try {
+    const { data: messageData, error: messageError } = await supabase
+      .from('messages')
+      .insert({
+        content: content,
+        sender_id: currentUser.id,
+        receiver_id: receiverId,
+        conversation_id: conversationId,
+        read: false,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (messageError) {
+      console.error('Erro ao enviar mensagem automática:', messageError);
+      throw messageError;
+    }
+
+    await supabase
+      .from('conversations')
+      .update({ 
+        last_message_id: messageData.id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', conversationId);
+    
+    setMessages(prev => [...prev, messageData]);
+    setInitialMessageSent(true);
+    
+  } catch (error) {
+    console.error('Erro ao enviar mensagem automática:', error);
+    throw error;
+  }
+};
+
+useEffect(() => {
+  if (isOpen && currentUser) {
+    fetchConversations();
+    
+    console.log('🔍 Debug - Dados recebidos:', {
+      initialSellerId,
+      initialItem,
+      initialMessage,
+      hasAutoMessageSent: hasAutoMessageSentRef.current
+    });
+    
+    if (initialSellerId && initialItem && !hasAutoMessageSentRef.current) {
+      setShowInitialChat(true);
+      startConversationWithSeller(initialSellerId, initialItem);
+    }
+  }
+}, [isOpen, currentUser, initialSellerId, initialItem]);
+
+useEffect(() => {
+  if (!isOpen) {
+    setActiveConversation(null);
+    setMessages([]);
+    setNewMessage("");
+    setInitialMessageSent(false);
+    setActiveParticipant(null);
+    setShowConversationList(true);
+    setShowInitialChat(false);
+   
+    hasAutoMessageSentRef.current = false;
+  }
+}, [isOpen]);
 
   useEffect(() => {
     if (isOpen && currentUser) {
       fetchConversations();
       
+      console.log('🔍 Debug - Dados recebidos:', {
+        initialSellerId,
+        initialItem,
+        initialMessage,
+        hasAutoMessageSent: hasAutoMessageSentRef.current
+      });
+   
       if (initialSellerId && initialItem) {
         setShowInitialChat(true);
-        console.log('Iniciando conversa automática com:', initialSellerId, initialItem);
-        
-        setTimeout(() => {
-          startConversationWithSeller(initialSellerId, initialItem);
-        }, 1000);
+        startConversationWithSeller(initialSellerId, initialItem);
       }
     }
   }, [isOpen, currentUser, initialSellerId, initialItem]);
@@ -471,6 +580,8 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
       setActiveParticipant(null);
       setShowConversationList(true);
       setShowInitialChat(false);
+     
+      hasAutoMessageSentRef.current = false;
     }
   }, [isOpen]);
 
@@ -630,7 +741,24 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
                                   : "bg-background border rounded-bl-md"
                               }`}
                             >
-                              <p className="text-sm">{message.content}</p>
+                              {message.image_url ? (
+                                <div className="mb-2">
+                                  <img 
+                                    src={message.image_url} 
+                                    alt="Imagem enviada" 
+                                    className="rounded-lg max-w-full h-auto max-h-48 object-cover"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                              ) : null}
+                              
+                              {message.content && (
+                                <p className="text-sm">{message.content}</p>
+                              )}
+                              
                               <p className={`text-xs mt-1 ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"} whitespace-nowrap`}>
                                 {formatMessageTime(message.created_at)}
                               </p>
@@ -656,9 +784,13 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
                         size="icon" 
                         className="h-10 w-10"
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={isSending || creatingConversation}
+                        disabled={isSending || creatingConversation || uploadingImage}
                       >
-                        <ImageIcon className="h-5 w-5" />
+                        {uploadingImage ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <ImageIcon className="h-5 w-5" />
+                        )}
                       </Button>
                       <Input
                         placeholder="Digite uma mensagem..."
@@ -670,16 +802,16 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem }: Mess
                             sendMessage();
                           }
                         }}
-                        disabled={isSending || creatingConversation}
+                        disabled={isSending || creatingConversation || uploadingImage}
                         className="flex-1"
                       />
                       <Button
                         size="icon"
                         onClick={() => sendMessage()}
-                        disabled={!newMessage.trim() || isSending || creatingConversation}
+                        disabled={(!newMessage.trim() && !uploadingImage) || isSending || creatingConversation || uploadingImage}
                         className="h-10 w-10"
                       >
-                        {isSending ? (
+                        {isSending || uploadingImage ? (
                           <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
                           <Send className="h-5 w-5" />
