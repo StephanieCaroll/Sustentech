@@ -39,6 +39,18 @@ const ResetPassword = () => {
     };
   }, []);
 
+  // Novo useEffect para limpar a URL após a sessão ser validada
+  useEffect(() => {
+    // Garante que a limpeza só aconteça se a sessão for válida e o hash existir
+    if (isValidSession && window.location.hash) {
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname
+      );
+    }
+  }, [isValidSession]);
+
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
