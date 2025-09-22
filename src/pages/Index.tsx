@@ -31,7 +31,6 @@ const Index = () => {
     cat.type === (activeTab === "items" ? "item" : "service")
   );
 
-  // Obter localização do usuário
   const getUserLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -51,12 +50,8 @@ const Index = () => {
     }
   };
 
-  // Simulação: encontrar itens e serviços próximos
   const findNearbyItemsAndServices = (lat: number, lng: number) => {
-    // Em uma implementação real, você faria uma consulta ao seu backend
-    // com a localização do usuário para encontrar itens e serviços próximos
-    
-    // Simulação: considerar todos os itens e serviços como "próximos" para demonstração
+   
     setNearbyItems(items);
     setNearbyServices(services);
   };
@@ -112,7 +107,7 @@ const Index = () => {
       />
 
       <main className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-x-hidden">
-        {/* Estatísticas compactas e lado a lado */}
+       
         <div className="grid grid-cols-2 gap-3 mb-6 justify-center">
           <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-3 rounded-xl border border-primary/20 flex flex-col items-center text-center max-w-[160px] mx-auto">
             <h3 className="text-xl font-bold text-primary">{items.length}</h3>
@@ -124,7 +119,6 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Botão de Geolocalização */}
         <div className="flex justify-center mb-6">
           <Button 
             onClick={getUserLocation}
@@ -135,7 +129,6 @@ const Index = () => {
           </Button>
         </div>
 
-        {/* Cards */}
         {activeTab === "items" ? (
           items.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -191,7 +184,6 @@ const Index = () => {
           </div>
         )}
 
-        {/* Comunidade */}
         <div className="mt-12 p-6 bg-gradient-to-r from-accent/20 to-primary/10 rounded-2xl border border-primary/20 text-center w-full break-words">
           <h2 className="text-lg sm:text-xl font-semibold mb-2 break-words">
             Comunidade SustenTech
@@ -216,7 +208,6 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Modal do Mapa - Corrigido para aparecer corretamente */}
       {showMap && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg w-full max-w-4xl h-96 md:h-[500px] relative overflow-hidden">
@@ -229,12 +220,10 @@ const Index = () => {
               <X size={20} />
             </Button>
             
-            {/* Mapa Simulado */}
             <div className="w-full h-full rounded-lg bg-blue-50 flex items-center justify-center relative border">
               <div className="absolute inset-0 bg-gradient-to-b from-blue-100 to-blue-200 opacity-50"></div>
               <Map size={48} className="text-blue-300 z-10" />
               
-              {/* Simulação de pontos no mapa */}
               {userLocation && (
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
                   <div className="w-6 h-6 bg-blue-600 rounded-full border-4 border-white shadow-lg animate-pulse flex items-center justify-center">
@@ -244,7 +233,6 @@ const Index = () => {
                 </div>
               )}
               
-              {/* Pontos de itens (em vermelho) */}
               {nearbyItems.slice(0, 8).map((item, index) => (
                 <div 
                   key={item.id}
@@ -260,7 +248,6 @@ const Index = () => {
                 </div>
               ))}
               
-              {/* Pontos de serviços (em verde) */}
               {nearbyServices.slice(0, 8).map((service, index) => (
                 <div 
                   key={service.id}
