@@ -472,14 +472,17 @@ const ServiceCard = ({
     return;
   }
 
-  const message = ""; 
+ if (contactType === 'budget') {
+    navigate(`/servicos/${service.id}/orcamento`);
+    return;
+  }
 
+  const message = ""; 
 
   if (onStartConversation) {
     onStartConversation(service.user_id, service, message);
     return;
   }
-
 
   setSelectedSellerId(service.user_id);
   setSelectedService(service);
@@ -638,16 +641,18 @@ const ServiceCard = ({
 
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-lg font-bold text-primary">{formatPrice(service.price_per_hour)}</span>
+                 {!isOwner && (
                   <Button 
-                    size="sm" 
-                    className="bg-gradient-to-r from-primary to-primary-glow" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleContact(e, 'contact');
-                    }}
+                  size="sm" 
+                  className="bg-gradient-to-r from-primary to-primary-glow" 
+                  onClick={(e) => {
+                  e.stopPropagation();
+                  handleContact(e, 'contact');
+                  }}
                   >
-                    Contatar
+                  Contatar
                   </Button>
+                  )}
                 </div>
               </>
             )}

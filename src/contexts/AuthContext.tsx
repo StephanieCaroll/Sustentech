@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Configurar listener de mudanças de auth primeiro
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -43,7 +43,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Depois verificar sessão existente
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -106,7 +105,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('Erro no cadastro:', signUpError);
       }
       
-      // O trigger handle_new_user irá criar o perfil automaticamente
     } catch (e) {
       error = e;
       console.log('Erro inesperado no cadastro:', e);

@@ -131,6 +131,17 @@ const Auth = () => {
                       )}
                     </Button>
                   </div>
+
+                  <div className="text-right">
+                  <button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  className="text-sm text-primary hover:underline"
+                  >
+                  Esqueceu sua senha?
+                  </button>
+                  </div>
+
                   <Button 
                     type="submit" 
                     className="w-full bg-gradient-to-r from-primary to-primary-glow" 
