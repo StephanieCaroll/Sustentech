@@ -15,36 +15,37 @@ const ForgotPassword = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
+const handleResetPassword = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!email) return;
 
-    setIsLoading(true);
-    
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+  setIsLoading(true);
 
-      if (error) {
-        throw error;
-      }
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      
+      redirectTo: "https://sustentech-azure.vercel.app/reset-password",
+    });
 
-      setIsSent(true);
-      toast({
-        title: "Email enviado",
-        description: "Verifique sua caixa de entrada para redefinir sua senha.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao enviar email de recuperação.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+    if (error) {
+      throw error;
     }
-  };
+
+    setIsSent(true);
+    toast({
+      title: "Email enviado",
+      description: "Verifique sua caixa de entrada para redefinir sua senha.",
+    });
+  } catch (error: any) {
+    toast({
+      title: "Erro",
+      description: error.message || "Erro ao enviar email de recuperação.",
+      variant: "destructive",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex items-center justify-center p-4">
