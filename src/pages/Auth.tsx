@@ -70,8 +70,9 @@ const Auth = () => {
       <div className="w-full max-w-md space-y-4">
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center space-x-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-glow">
-              <span className="text-sm font-bold text-primary-foreground">S</span>
+            {/* Aumento do tamanho para h-10 w-10 */}
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-glow">
+              <img src="/Logo.png" alt="Logo" className="h-full w-full object-contain" />
             </div>
             <span className="font-bold text-lg bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
               SustenTech

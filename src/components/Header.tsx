@@ -132,12 +132,9 @@ const Header = ({
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 overflow-x-hidden">
         <div className="w-full max-w-screen-xl mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8 overflow-hidden break-words">
-        
-          <div className="flex items-center space-x-2 min-w-fit">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-glow">
-              <span className="text-lg font-bold text-primary-foreground">
-                S
-              </span>
+          <div className="flex items-center space-x-2 min-w-fit -mt-1">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg"> 
+              <img src="/Logo.png" alt="Logo" className="h-full w-full object-contain" />
             </div>
             <span className="font-bold text-xl bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent hidden sm:block">
               SustenTech
