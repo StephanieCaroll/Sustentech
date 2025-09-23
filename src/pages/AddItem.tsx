@@ -118,7 +118,6 @@ export default function AddItem() {
     return;
   }
   
-  // Se selecionou "Outros" mas não preencheu a categoria personalizada
   const outrosCategoryId = "d5a2a7b0-7ac1-4dfe-9126-62391b076ef6"; 
   if (form.category_id === outrosCategoryId && !form.custom_category) {
     setError("Por favor, especifique a categoria personalizada.");
@@ -130,7 +129,6 @@ export default function AddItem() {
   try {
     const price = form.type === "venda" ? parseFloat(form.price) || 0 : 0;
 
-    // Para a categoria "Outros", adicionar a info na descrição
     let finalDescription = form.description;
     if (form.category_id === outrosCategoryId && form.custom_category) {
       finalDescription = `[Categoria Personalizada: ${form.custom_category}]\n\n${form.description}`;
@@ -160,8 +158,7 @@ export default function AddItem() {
     
     if (itemError) {
       console.error("Erro ao inserir item:", itemError);
-      
-      // Verificar se é erro de RLS
+     
       if (itemError.code === '42501') {
         throw new Error("Permissão negada. Verifique as políticas de segurança do banco de dados.");
       }
@@ -184,7 +181,7 @@ export default function AddItem() {
         }
       } catch (uploadError) {
         console.error("Erro no upload de imagens:", uploadError);
-        // Não impedir o sucesso da criação do item por erro nas imagens
+       
       }
     }
     

@@ -1,9 +1,11 @@
 import {
   Search,
   MessageCircle,
-  ShoppingCart,
+  MapPin,
   User,
   LogOut,
+  Map,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,8 +18,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
-import Cart from "./Cart";
-import { useCartCount } from "@/hooks/useCartCount";
 import { Messages } from "./Message";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -34,15 +34,32 @@ const Header = ({
 }: HeaderProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
-
-  const cartItemCount = useCartCount();
+  const [showMap, setShowMap] = useState(false);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
 
   const handleSearchKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       onSearchSubmit();
+    }
+  };
+
+  const getUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lng: longitude });
+          setShowMap(true);
+        },
+        (error) => {
+          console.error("Erro ao obter localização:", error);
+          alert("Não foi possível obter sua localização. Verifique as permissões do navegador.");
+        }
+      );
+    } else {
+      alert("Geolocalização não é suportada por este navegador.");
     }
   };
 
@@ -161,14 +178,9 @@ const Header = ({
                   variant="ghost"
                   size="icon"
                   className="relative h-10 w-10"
-                  onClick={() => setIsCartOpen(true)}
+                  onClick={getUserLocation}
                 >
-                  <ShoppingCart className="h-6 w-6" />
-                  {cartItemCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full text-xs text-white flex items-center justify-center">
-                      {cartItemCount}
-                    </span>
-                  )}
+                  <MapPin className="h-6 w-6" />
                 </Button>
 
                 <DropdownMenu>
@@ -200,7 +212,56 @@ const Header = ({
         </div>
       </header>
 
-      <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      {showMap && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-4xl h-96 md:h-[500px] relative overflow-hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-3 right-3 z-10 bg-white rounded-full shadow-md"
+              onClick={() => setShowMap(false)}
+            >
+              <X size={20} />
+            </Button>
+            
+            <div className="w-full h-full rounded-lg bg-blue-50 flex items-center justify-center relative border">
+              <div className="absolute inset-0 bg-gradient-to-b from-blue-100 to-blue-200 opacity-50"></div>
+              <Map size={48} className="text-blue-300 z-10" />
+              
+              {userLocation && (
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
+                  <div className="w-6 h-6 bg-blue-600 rounded-full border-4 border-white shadow-lg animate-pulse flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                  <div className="text-xs mt-2 text-center font-medium bg-white/80 px-2 py-1 rounded-md shadow-sm">Você está aqui</div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 bg-white rounded-b-lg border-t">
+              <div className="flex items-center justify-center gap-6 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+                  <span className="text-sm">Itens próximos</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+                  <span className="text-sm">Serviços próximos</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-blue-600 rounded-full"></div>
+                  <span className="text-sm">Sua localização</span>
+                </div>
+              </div>
+              <p className="text-sm text-center text-muted-foreground">
+                {userLocation 
+                  ? `Mostrando itens e serviços próximos a sua localização atual`
+                  : `Localização não disponível`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Messages
         isOpen={isMessagesOpen}

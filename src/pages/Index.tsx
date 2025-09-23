@@ -19,8 +19,7 @@ const Index = () => {
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [showMap, setShowMap] = useState(false);
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+
   const [nearbyItems, setNearbyItems] = useState<any[]>([]);
   const [nearbyServices, setNearbyServices] = useState<any[]>([]);
   const { user, loading: authLoading } = useAuth();
@@ -31,24 +30,6 @@ const Index = () => {
     cat.type === (activeTab === "items" ? "item" : "service")
   );
 
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation({ lat: latitude, lng: longitude });
-          setShowMap(true);
-          findNearbyItemsAndServices(latitude, longitude);
-        },
-        (error) => {
-          console.error("Erro ao obter localização:", error);
-          alert("Não foi possível obter sua localização. Verifique as permissões do navegador.");
-        }
-      );
-    } else {
-      alert("Geolocalização não é suportada por este navegador.");
-    }
-  };
 
   const findNearbyItemsAndServices = (lat: number, lng: number) => {
    
@@ -117,16 +98,6 @@ const Index = () => {
             <h3 className="text-xl font-bold text-accent-foreground">{services.length}</h3>
             <p className="text-xs text-muted-foreground">Serviços ativos</p>
           </div>
-        </div>
-
-        <div className="flex justify-center mb-6">
-          <Button 
-            onClick={getUserLocation}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90"
-          >
-            <MapPin size={16} />
-            Ver itens e serviços próximos
-          </Button>
         </div>
 
         {activeTab === "items" ? (
@@ -207,87 +178,6 @@ const Index = () => {
           </div>
         </div>
       </main>
-
-      {showMap && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl h-96 md:h-[500px] relative overflow-hidden">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-3 right-3 z-10 bg-white rounded-full shadow-md"
-              onClick={() => setShowMap(false)}
-            >
-              <X size={20} />
-            </Button>
-            
-            <div className="w-full h-full rounded-lg bg-blue-50 flex items-center justify-center relative border">
-              <div className="absolute inset-0 bg-gradient-to-b from-blue-100 to-blue-200 opacity-50"></div>
-              <Map size={48} className="text-blue-300 z-10" />
-              
-              {userLocation && (
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-                  <div className="w-6 h-6 bg-blue-600 rounded-full border-4 border-white shadow-lg animate-pulse flex items-center justify-center">
-                    <div className="w-2 h-2 bg-white rounded-full"></div>
-                  </div>
-                  <div className="text-xs mt-2 text-center font-medium bg-white/80 px-2 py-1 rounded-md shadow-sm">Você está aqui</div>
-                </div>
-              )}
-              
-              {nearbyItems.slice(0, 8).map((item, index) => (
-                <div 
-                  key={item.id}
-                  className="absolute z-20"
-                  style={{
-                    top: `${30 + (index * 8)}%`,
-                    left: `${20 + (index * 7)}%`,
-                  }}
-                >
-                  <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
-                    <div className="w-1 h-1 bg-white rounded-full"></div>
-                  </div>
-                </div>
-              ))}
-              
-              {nearbyServices.slice(0, 8).map((service, index) => (
-                <div 
-                  key={service.id}
-                  className="absolute z-20"
-                  style={{
-                    top: `${50 + (index * 5)}%`,
-                    left: `${60 + (index * 4)}%`,
-                  }}
-                >
-                  <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
-                    <div className="w-1 h-1 bg-white rounded-full"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="p-4 bg-white rounded-b-lg border-t">
-              <div className="flex items-center justify-center gap-6 mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-                  <span className="text-sm">Itens ({nearbyItems.length})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-                  <span className="text-sm">Serviços ({nearbyServices.length})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-blue-600 rounded-full"></div>
-                  <span className="text-sm">Sua localização</span>
-                </div>
-              </div>
-              <p className="text-sm text-center text-muted-foreground">
-                {userLocation 
-                  ? `Mostrando itens e serviços próximos a sua localização atual`
-                  : `Localização não disponível`}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       <Messages 
         isOpen={isMessagesOpen} 
