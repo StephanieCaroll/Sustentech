@@ -603,7 +603,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
       <div className="w-screen h-screen bg-background flex flex-col">
         
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
           {!showConversationList && activeParticipant ? (
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" onClick={handleBackToConversations} className="md:hidden">
@@ -632,10 +632,10 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
           </Button>
         </div>
 
-        <div className="flex flex-1 overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
+        <div className="flex flex-1 overflow-hidden min-h-0">
        
           {(showConversationList || window.innerWidth >= 768) && (
-            <div className="w-full md:w-1/3 border-r overflow-y-auto">
+            <div className="w-full md:w-1/3 border-r overflow-y-auto flex flex-col">
               {isLoading ? (
                 <div className="flex justify-center items-center h-full">
                   <Loader2 className="h-8 w-8 animate-spin" />
@@ -648,57 +648,56 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                   </p>
                 </div>
               ) : (
-                conversations.map(conversation => (
-                  <div
-                    key={conversation.id}
-                    className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
-                      activeConversation === conversation.id ? "bg-muted" : ""
-                    }`}
-                    onClick={() => fetchMessages(conversation.id)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={conversation.participant.avatar_url} />
-                        <AvatarFallback className="bg-primary/10 text-primary">
-                          {conversation.participant.name?.[0]?.toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium truncate">
-                            {conversation.participant.name || 'Usuário'}
+                <div className="flex-1 overflow-y-auto">
+                  {conversations.map(conversation => (
+                    <div
+                      key={conversation.id}
+                      className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
+                        activeConversation === conversation.id ? "bg-muted" : ""
+                      }`}
+                      onClick={() => fetchMessages(conversation.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={conversation.participant.avatar_url} />
+                          <AvatarFallback className="bg-primary/10 text-primary">
+                            {conversation.participant.name?.[0]?.toUpperCase() || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="font-medium truncate">
+                              {conversation.participant.name || 'Usuário'}
+                            </p>
+                            {conversation.last_message && (
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {formatTime(conversation.last_message.created_at)}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate mt-1">
+                            {conversation.last_message?.content || "Nenhuma mensagem ainda"}
                           </p>
-                          {conversation.last_message && (
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              {formatTime(conversation.last_message.created_at)}
-                            </span>
-                          )}
                         </div>
-                        <p className="text-sm text-muted-foreground truncate mt-1">
-                          {conversation.last_message?.content || "Nenhuma mensagem ainda"}
-                        </p>
+                        {conversation.unread_count > 0 && (
+                          <span className="bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
+                            {conversation.unread_count}
+                          </span>
+                        )}
                       </div>
-                      {conversation.unread_count > 0 && (
-                        <span className="bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
-                          {conversation.unread_count}
-                        </span>
-                      )}
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           )}
 
           {(activeConversation || window.innerWidth >= 768 || showInitialChat) && (
-            <div className="w-full md:w-2/3 flex flex-col">
+            <div className="w-full md:w-2/3 flex flex-col min-h-0">
               {activeConversation && activeParticipant ? (
                 <>
-                
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/30" style={{ 
-                    maxHeight: 'calc(100vh - 140px)',
-                    paddingBottom: '0'
-                  }}>
+                  {/* Área de mensagens - flexível */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/30 min-h-0">
                     {messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full">
                         <p className="text-sm text-muted-foreground">
@@ -752,7 +751,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                     )}
                   </div>
 
-                  <div className="p-3 border-t bg-background sticky bottom-0">
+                  <div className="p-3 border-t bg-background flex-shrink-0">
                     <div className="flex gap-2 items-center">
                       <input
                         type="file"
@@ -803,7 +802,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                   </div>
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center">
+                <div className="flex-1 flex items-center justify-center min-h-0">
                   <div className="text-center">
                     <MessageCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">
