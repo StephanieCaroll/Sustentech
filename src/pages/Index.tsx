@@ -86,8 +86,7 @@ const Index = () => {
         );
     }
 
-    // REMOVEMOS A VARIÁVEL mainPaddingTopClass. O padding será aplicado diretamente na tag <main>.
-    // const mainPaddingTopClass = "pt-60"; 
+    // Variável removida
 
     return (
         <div className="min-h-screen w-full bg-gradient-to-b from-background to-muted/30 overflow-x-hidden relative">
@@ -109,10 +108,8 @@ const Index = () => {
                 />
             </div>
 
-            {/* AJUSTE RESPONSIVO: pt-60 para celulares, md:pt-48 para desktop/tablet */}
-            <main className={`w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 pt-60 md:pt-48 pb-6 overflow-x-hidden`}>
+            <main className={`w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 pt-64 md:pt-48 pb-6 overflow-x-hidden`}>
                 
-                {/* CORREÇÃO DO FLEXBOX MANTIDA */}
                 <div className="flex gap-3 mb-6 justify-center">
                     <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-3 rounded-xl border border-primary/20 flex flex-col items-center text-center max-w-[160px]">
                         <h3 className="text-xl font-bold text-primary">{items.length}</h3>
