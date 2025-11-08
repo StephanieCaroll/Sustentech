@@ -603,33 +603,33 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
       <div className="w-screen h-screen bg-background flex flex-col">
         
-        {/* Header SUPER compacto */}
-        <div className="flex items-center justify-between p-2 border-b flex-shrink-0 bg-background">
+        {/* Header normal */}
+        <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
           {!showConversationList && activeParticipant ? (
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={handleBackToConversations} className="md:hidden h-7 w-7">
-                <ArrowLeft className="h-3 w-3" />
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={handleBackToConversations} className="md:hidden">
+                <ArrowLeft className="h-5 w-5" />
               </Button>
-              <Avatar className="h-6 w-6">
+              <Avatar className="h-8 w-8">
                 <AvatarImage src={activeParticipant.avatar_url} />
-                <AvatarFallback className="text-xs">
+                <AvatarFallback>
                   {activeParticipant.name?.[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium text-xs">{activeParticipant.name || 'Usuário'}</p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="font-medium">{activeParticipant.name || 'Usuário'}</p>
+                <p className="text-xs text-muted-foreground">
                   {activeParticipant.user_id === currentUser?.id ? "Você" : "Online"}
                 </p>
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-sm">Mensagens</h3>
+            <div className="flex items-center gap-3">
+              <h3 className="font-semibold text-lg">Mensagens</h3>
             </div>
           )}
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7">
-            <X className="h-3 w-3" />
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-5 w-5" />
           </Button>
         </div>
 
@@ -639,12 +639,12 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
             <div className="w-full md:w-1/3 border-r overflow-y-auto flex flex-col">
               {isLoading ? (
                 <div className="flex justify-center items-center h-full">
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : conversations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full p-4">
-                  <User className="h-10 w-10 text-muted-foreground mb-2" />
-                  <p className="text-xs text-muted-foreground text-center">
+                <div className="flex flex-col items-center justify-center h-full p-6">
+                  <User className="h-16 w-16 text-muted-foreground mb-4" />
+                  <p className="text-sm text-muted-foreground text-center">
                     Suas conversas aparecerão aqui
                   </p>
                 </div>
@@ -653,35 +653,35 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                   {conversations.map(conversation => (
                     <div
                       key={conversation.id}
-                      className={`p-2 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
+                      className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
                         activeConversation === conversation.id ? "bg-muted" : ""
                       }`}
                       onClick={() => fetchMessages(conversation.id)}
                     >
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-12 w-12">
                           <AvatarImage src={conversation.participant.avatar_url} />
-                          <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                          <AvatarFallback className="bg-primary/10 text-primary">
                             {conversation.participant.name?.[0]?.toUpperCase() || 'U'}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <p className="font-medium text-xs truncate">
+                            <p className="font-medium truncate">
                               {conversation.participant.name || 'Usuário'}
                             </p>
                             {conversation.last_message && (
-                              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
                                 {formatTime(conversation.last_message.created_at)}
                               </span>
                             )}
                           </div>
-                          <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                          <p className="text-sm text-muted-foreground truncate mt-1">
                             {conversation.last_message?.content || "Nenhuma mensagem ainda"}
                           </p>
                         </div>
                         {conversation.unread_count > 0 && (
-                          <span className="bg-primary text-primary-foreground text-[10px] rounded-full h-3 w-3 flex items-center justify-center min-w-[12px]">
+                          <span className="bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
                             {conversation.unread_count}
                           </span>
                         )}
@@ -697,11 +697,14 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
             <div className="w-full md:w-2/3 flex flex-col min-h-0">
               {activeConversation && activeParticipant ? (
                 <>
-                  {/* Área de mensagens - MUITO mais compacta */}
-                  <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-muted/30 min-h-0">
+                  {/* Área de mensagens - MAIS CURTA para dar espaço ao input */}
+                  <div 
+                    className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/30 min-h-0"
+                    style={{ maxHeight: '60vh' }}
+                  >
                     {messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full">
-                        <p className="text-xs text-muted-foreground text-center">
+                        <p className="text-sm text-muted-foreground">
                           {creatingConversation ? "Iniciando conversa..." : "Envie uma mensagem para iniciar a conversa"}
                         </p>
                       </div>
@@ -713,21 +716,21 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                           return (
                             <div
                               key={message.id}
-                              className={`flex gap-1 ${isOwn ? "justify-end" : "justify-start"}`}
+                              className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}
                             >
                               <div
-                                className={`max-w-[80%] p-2 rounded-lg ${
+                                className={`max-w-xs p-3 rounded-2xl ${
                                   isOwn
                                     ? "bg-primary text-primary-foreground rounded-br-md"
                                     : "bg-background border rounded-bl-md"
                                 }`}
                               >
                                 {message.image_url ? (
-                                  <div className="mb-1">
+                                  <div className="mb-2">
                                     <img 
                                       src={message.image_url} 
                                       alt="Imagem enviada" 
-                                      className="rounded max-w-full h-auto max-h-24 object-cover"
+                                      className="rounded-lg max-w-full h-auto max-h-48 object-cover"
                                       onError={(e) => {
                                         const target = e.target as HTMLImageElement;
                                         target.style.display = 'none';
@@ -737,10 +740,10 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                                 ) : null}
                                 
                                 {message.content && (
-                                  <p className="text-xs">{message.content}</p>
+                                  <p className="text-sm">{message.content}</p>
                                 )}
                                 
-                                <p className={`text-[10px] mt-0.5 ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"} whitespace-nowrap`}>
+                                <p className={`text-xs mt-1 ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"} whitespace-nowrap`}>
                                   {formatMessageTime(message.created_at)}
                                 </p>
                               </div>
@@ -752,9 +755,9 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                     )}
                   </div>
 
-                  {/* Área de input - AGORA BEM MAIS PARA CIMA */}
-                  <div className="bg-background border-t flex-shrink-0">
-                    <div className="p-1 flex gap-1 items-center">
+                  {/* Área de input - MAIS PARA CIMA com tamanho normal */}
+                  <div className="p-3 border-t bg-background flex-shrink-0">
+                    <div className="flex gap-2 items-center">
                       <input
                         type="file"
                         ref={fileInputRef}
@@ -765,14 +768,14 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-6 w-6 flex-shrink-0"
+                        className="h-10 w-10 flex-shrink-0"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isSending || creatingConversation || uploadingImage}
                       >
                         {uploadingImage ? (
-                          <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                          <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
-                          <ImageIcon className="h-2.5 w-2.5" />
+                          <ImageIcon className="h-5 w-5" />
                         )}
                       </Button>
                       <Input
@@ -786,18 +789,18 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                           }
                         }}
                         disabled={isSending || creatingConversation || uploadingImage}
-                        className="flex-1 min-w-0 text-xs h-6"
+                        className="flex-1 min-w-0"
                       />
                       <Button
                         size="icon"
                         onClick={() => sendMessage()}
                         disabled={(!newMessage.trim() && !uploadingImage) || isSending || creatingConversation || uploadingImage}
-                        className="h-6 w-6 flex-shrink-0"
+                        className="h-10 w-10 flex-shrink-0"
                       >
                         {isSending || uploadingImage ? (
-                          <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                          <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
-                          <Send className="h-2.5 w-2.5" />
+                          <Send className="h-5 w-5" />
                         )}
                       </Button>
                     </div>
@@ -806,8 +809,8 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
               ) : (
                 <div className="flex-1 flex items-center justify-center min-h-0">
                   <div className="text-center">
-                    <MessageCircle className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-xs text-muted-foreground">
+                    <MessageCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">
                       {creatingConversation ? "Iniciando conversa..." : "Selecione uma conversa para começar"}
                     </p>
                   </div>
