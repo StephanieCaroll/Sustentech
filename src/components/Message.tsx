@@ -696,7 +696,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
             <div className="w-full md:w-2/3 flex flex-col min-h-0">
               {activeConversation && activeParticipant ? (
                 <>
-                  {/* Área de mensagens - flexível */}
+                
                   <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/30 min-h-0">
                     {messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full">
@@ -751,7 +751,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                     )}
                   </div>
 
-                  <div className="p-3 border-t bg-background flex-shrink-0">
+                  <div className="p-2 border-t bg-background flex-shrink-0">
                     <div className="flex gap-2 items-center">
                       <input
                         type="file"
@@ -763,14 +763,14 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-10 w-10 flex-shrink-0"
+                        className="h-9 w-9 flex-shrink-0"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isSending || creatingConversation || uploadingImage}
                       >
                         {uploadingImage ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <ImageIcon className="h-5 w-5" />
+                          <ImageIcon className="h-4 w-4" />
                         )}
                       </Button>
                       <Input
@@ -784,18 +784,18 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                           }
                         }}
                         disabled={isSending || creatingConversation || uploadingImage}
-                        className="flex-1 min-w-0"
+                        className="flex-1 min-w-0 text-sm"
                       />
                       <Button
                         size="icon"
                         onClick={() => sendMessage()}
                         disabled={(!newMessage.trim() && !uploadingImage) || isSending || creatingConversation || uploadingImage}
-                        className="h-10 w-10 flex-shrink-0"
+                        className="h-9 w-9 flex-shrink-0"
                       >
                         {isSending || uploadingImage ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <Send className="h-5 w-5" />
+                          <Send className="h-4 w-4" />
                         )}
                       </Button>
                     </div>
