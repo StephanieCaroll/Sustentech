@@ -42,7 +42,7 @@ interface FormattedConversation {
 }
 
 interface MessagesProps {
-   isOpen: boolean;
+  isOpen: boolean;
   onClose: () => void;
   initialSellerId?: string;
   initialItem?: any;
@@ -293,50 +293,55 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
   };
 
   const uploadImage = async (file: File): Promise<string | null> => {
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+  try {
+    setUploadingImage(true);
+    
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `${fileName}`;
 
-      let { error: uploadError } = await supabase.storage
-        .from('message-images')
-        .upload(filePath, file);
+    console.log('Fazendo upload para o bucket: messages');
 
-      if (uploadError && uploadError.message.includes('Bucket not found')) {
-        console.log('Bucket message-images não encontrado, tentando images...');
-        ({ error: uploadError } = await supabase.storage
-          .from('images')
-          .upload(filePath, file));
-      }
+    const { data, error: uploadError } = await supabase.storage
+      .from('messages')
+      .upload(filePath, file);
 
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('message-images')
-        .getPublicUrl(filePath);
-
-      return publicUrl;
-    } catch (error: any) {
-      console.error('Erro no upload da imagem:', error);
-      
-      if (error.message?.includes('Bucket not found')) {
-        toast({
-          title: "Bucket não configurado",
-          description: "O bucket de imagens não está configurado. Contate o administrador.",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Erro no upload",
-          description: "Não foi possível fazer upload da imagem",
-          variant: "destructive"
-        });
-      }
-      return null;
+    if (uploadError) {
+      console.error('❌ Erro no upload:', uploadError);
+      throw uploadError;
     }
-  };
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('messages')
+      .getPublicUrl(filePath);
+
+    console.log('✅ Upload realizado com sucesso:', publicUrl);
+    return publicUrl;
+
+  } catch (error: any) {
+    console.error('❌ Erro no upload da imagem:', error);
+    
+    let errorMessage = "Não foi possível fazer upload da imagem";
+    
+    if (error.message?.includes('Bucket not found')) {
+      errorMessage = "Bucket de mensagens não encontrado. Contate o suporte.";
+    } else if (error.message?.includes('not authorized')) {
+      errorMessage = "Sem permissão para enviar imagens. Faça login novamente.";
+    } else if (error.message?.includes('payload too large')) {
+      errorMessage = "A imagem é muito grande. Tamanho máximo: 5MB";
+    }
+
+    toast({
+      title: "Erro no upload",
+      description: errorMessage,
+      variant: "destructive"
+    });
+    
+    return null;
+  } finally {
+    setUploadingImage(false);
+  }
+};
 
   const sendMessage = async (content?: string, imageUrl?: string) => {
     const messageContent = content || newMessage.trim();
@@ -433,121 +438,90 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
       }
     }
   };
-const startConversationWithSeller = async (sellerId: string, item: any) => {
-  if (!currentUser || !sellerId || hasAutoMessageSentRef.current) return;
-  
-  setCreatingConversation(true);
-  try {
-    const conversationId = await createConversation(sellerId);
+
+  const startConversationWithSeller = async (sellerId: string, item: any) => {
+    if (!currentUser || !sellerId || hasAutoMessageSentRef.current) return;
     
-    if (conversationId) {
-      const sellerProfile = await fetchProfile(sellerId);
-      setActiveParticipant(sellerProfile);
-      setActiveConversation(conversationId);
+    setCreatingConversation(true);
+    try {
+      const conversationId = await createConversation(sellerId);
       
-      hasAutoMessageSentRef.current = true;
-   
-      let itemName = 'este produto/serviço';
-      
-      if (item) {
-        if (item.name) itemName = item.name;
-        else if (item.title) itemName = item.title;
-        else if (item.nome) itemName = item.nome;
-        else if (typeof item === 'object' && item.name) itemName = item.name;
-      }
-      
-      const messageToSend = initialMessage || `Olá! Gostaria de mais informações sobre: ${itemName}`;
+      if (conversationId) {
+        const sellerProfile = await fetchProfile(sellerId);
+        setActiveParticipant(sellerProfile);
+        setActiveConversation(conversationId);
+        
+        hasAutoMessageSentRef.current = true;
      
-      await sendAutoMessage(conversationId, sellerId, messageToSend);
-      
-      await fetchMessages(conversationId);
-      
-      if (window.innerWidth < 768) {
-        setShowConversationList(false);
+        let itemName = 'este produto/serviço';
+        
+        if (item) {
+          if (item.name) itemName = item.name;
+          else if (item.title) itemName = item.title;
+          else if (item.nome) itemName = item.nome;
+          else if (typeof item === 'object' && item.name) itemName = item.name;
+        }
+        
+        const messageToSend = initialMessage || `Olá! Gostaria de mais informações sobre: ${itemName}`;
+       
+        await sendAutoMessage(conversationId, sellerId, messageToSend);
+        
+        await fetchMessages(conversationId);
+        
+        if (window.innerWidth < 768) {
+          setShowConversationList(false);
+        }
       }
+    } catch (error) {
+      console.error('❌ Erro ao iniciar conversa:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível iniciar a conversa",
+        variant: "destructive"
+      });
+    } finally {
+      setCreatingConversation(false);
     }
-  } catch (error) {
-    console.error('❌ Erro ao iniciar conversa:', error);
-    toast({
-      title: "Erro",
-      description: "Não foi possível iniciar a conversa",
-      variant: "destructive"
-    });
-  } finally {
-    setCreatingConversation(false);
-  }
-};
+  };
 
-const sendAutoMessage = async (conversationId: string, receiverId: string, content: string) => {
-  if (!currentUser) return;
-  
-  try {
-    const { data: messageData, error: messageError } = await supabase
-      .from('messages')
-      .insert({
-        content: content,
-        sender_id: currentUser.id,
-        receiver_id: receiverId,
-        conversation_id: conversationId,
-        read: false,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+  const sendAutoMessage = async (conversationId: string, receiverId: string, content: string) => {
+    if (!currentUser) return;
     
-    if (messageError) {
-      console.error('Erro ao enviar mensagem automática:', messageError);
-      throw messageError;
+    try {
+      const { data: messageData, error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          content: content,
+          sender_id: currentUser.id,
+          receiver_id: receiverId,
+          conversation_id: conversationId,
+          read: false,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (messageError) {
+        console.error('Erro ao enviar mensagem automática:', messageError);
+        throw messageError;
+      }
+
+      await supabase
+        .from('conversations')
+        .update({ 
+          last_message_id: messageData.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', conversationId);
+      
+      setMessages(prev => [...prev, messageData]);
+      setInitialMessageSent(true);
+      
+    } catch (error) {
+      console.error('Erro ao enviar mensagem automática:', error);
+      throw error;
     }
-
-    await supabase
-      .from('conversations')
-      .update({ 
-        last_message_id: messageData.id,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', conversationId);
-    
-    setMessages(prev => [...prev, messageData]);
-    setInitialMessageSent(true);
-    
-  } catch (error) {
-    console.error('Erro ao enviar mensagem automática:', error);
-    throw error;
-  }
-};
-
-useEffect(() => {
-  if (isOpen && currentUser) {
-    fetchConversations();
-    
-    console.log('🔍 Debug - Dados recebidos:', {
-      initialSellerId,
-      initialItem,
-      initialMessage,
-      hasAutoMessageSent: hasAutoMessageSentRef.current
-    });
-    
-    if (initialSellerId && initialItem && !hasAutoMessageSentRef.current) {
-      setShowInitialChat(true);
-      startConversationWithSeller(initialSellerId, initialItem);
-    }
-  }
-}, [isOpen, currentUser, initialSellerId, initialItem]);
-
-useEffect(() => {
-  if (!isOpen) {
-    setActiveConversation(null);
-    setMessages([]);
-    setNewMessage("");
-    setInitialMessageSent(false);
-    setActiveParticipant(null);
-    setShowConversationList(true);
-    setShowInitialChat(false);
-   
-    hasAutoMessageSentRef.current = false;
-  }
-}, [isOpen]);
+  };
 
   useEffect(() => {
     if (isOpen && currentUser) {
@@ -559,17 +533,13 @@ useEffect(() => {
         initialMessage,
         hasAutoMessageSent: hasAutoMessageSentRef.current
       });
-   
-      if (initialSellerId && initialItem) {
+      
+      if (initialSellerId && initialItem && !hasAutoMessageSentRef.current) {
         setShowInitialChat(true);
         startConversationWithSeller(initialSellerId, initialItem);
       }
     }
   }, [isOpen, currentUser, initialSellerId, initialItem]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -584,6 +554,10 @@ useEffect(() => {
       hasAutoMessageSentRef.current = false;
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const formatTime = (dateString: string) => {
     try {
@@ -626,8 +600,9 @@ useEffect(() => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-0 md:p-4">
-      <div className="bg-background border rounded-lg shadow-lg flex flex-col w-full h-full md:max-w-4xl md:max-h-[90vh] md:h-auto">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+      <div className="w-screen h-screen bg-background flex flex-col">
+        
         <div className="flex items-center justify-between p-4 border-b">
           {!showConversationList && activeParticipant ? (
             <div className="flex items-center gap-3">
@@ -657,7 +632,8 @@ useEffect(() => {
           </Button>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
+       
           {(showConversationList || window.innerWidth >= 768) && (
             <div className="w-full md:w-1/3 border-r overflow-y-auto">
               {isLoading ? (
@@ -665,9 +641,9 @@ useEffect(() => {
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : conversations.length === 0 ? (
-                <div className="p-6 text-center">
-                  <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-sm text-muted-foreground mt-2">
+                <div className="flex flex-col items-center justify-center h-full p-6">
+                  <User className="h-16 w-16 text-muted-foreground mb-4" />
+                  <p className="text-sm text-muted-foreground text-center">
                     Suas conversas aparecerão aqui
                   </p>
                 </div>
@@ -718,56 +694,59 @@ useEffect(() => {
             <div className="w-full md:w-2/3 flex flex-col">
               {activeConversation && activeParticipant ? (
                 <>
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/30">
+                
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/30" style={{ maxHeight: 'calc(100vh - 180px)' }}>
                     {messages.length === 0 ? (
-                      <div className="text-center py-12">
-                        <p className="text-sm text-muted-foreground mt-2">
+                      <div className="flex flex-col items-center justify-center h-full">
+                        <p className="text-sm text-muted-foreground">
                           {creatingConversation ? "Iniciando conversa..." : "Envie uma mensagem para iniciar a conversa"}
                         </p>
                       </div>
                     ) : (
-                      messages.map((message) => {
-                        const isOwn = message.sender_id === currentUser?.id;
+                      <>
+                        {messages.map((message) => {
+                          const isOwn = message.sender_id === currentUser?.id;
 
-                        return (
-                          <div
-                            key={message.id}
-                            className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}
-                          >
+                          return (
                             <div
-                              className={`max-w-xs p-3 rounded-2xl ${
-                                isOwn
-                                  ? "bg-primary text-primary-foreground rounded-br-md"
-                                  : "bg-background border rounded-bl-md"
-                              }`}
+                              key={message.id}
+                              className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}
                             >
-                              {message.image_url ? (
-                                <div className="mb-2">
-                                  <img 
-                                    src={message.image_url} 
-                                    alt="Imagem enviada" 
-                                    className="rounded-lg max-w-full h-auto max-h-48 object-cover"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.style.display = 'none';
-                                    }}
-                                  />
-                                </div>
-                              ) : null}
-                              
-                              {message.content && (
-                                <p className="text-sm">{message.content}</p>
-                              )}
-                              
-                              <p className={`text-xs mt-1 ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"} whitespace-nowrap`}>
-                                {formatMessageTime(message.created_at)}
-                              </p>
+                              <div
+                                className={`max-w-xs p-3 rounded-2xl ${
+                                  isOwn
+                                    ? "bg-primary text-primary-foreground rounded-br-md"
+                                    : "bg-background border rounded-bl-md"
+                                }`}
+                              >
+                                {message.image_url ? (
+                                  <div className="mb-2">
+                                    <img 
+                                      src={message.image_url} 
+                                      alt="Imagem enviada" 
+                                      className="rounded-lg max-w-full h-auto max-h-48 object-cover"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                      }}
+                                    />
+                                  </div>
+                                ) : null}
+                                
+                                {message.content && (
+                                  <p className="text-sm">{message.content}</p>
+                                )}
+                                
+                                <p className={`text-xs mt-1 ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"} whitespace-nowrap`}>
+                                  {formatMessageTime(message.created_at)}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })
+                          );
+                        })}
+                        <div ref={messagesEndRef} />
+                      </>
                     )}
-                    <div ref={messagesEndRef} />
                   </div>
 
                   <div className="p-4 border-t bg-background">
@@ -823,7 +802,7 @@ useEffect(() => {
               ) : (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
-                    <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <MessageCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">
                       {creatingConversation ? "Iniciando conversa..." : "Selecione uma conversa para começar"}
                     </p>

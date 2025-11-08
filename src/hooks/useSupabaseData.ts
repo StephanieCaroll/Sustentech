@@ -3,6 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface Item {
+  cep: string;
+  bairro: string;
+  complemento: string;
+  numero: string;
+  logradouro: string;
   id: string;
   title: string;
   description?: string;
@@ -46,6 +51,7 @@ export interface Service {
   is_active?: boolean;
   created_at: string;
   profiles?: {
+    bio: any;
     name: string;
     avatar_url?: string;
     rating?: number;

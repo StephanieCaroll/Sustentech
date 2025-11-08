@@ -1,16 +1,22 @@
-import { useState, ChangeEvent, useRef } from "react";
+import { useState, ChangeEvent, useRef } from "react"; 
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Upload } from "lucide-react";
+
+import { X, Upload, Leaf, MapPin, Briefcase, DollarSign, Clock, AlertTriangle } from "lucide-react"; 
 
 export default function AddService() {
   const [form, setForm] = useState({
     name: "",
     description: "",
+    logradouro: "", 
+    numero: "", 
+    complemento: "", 
+    bairro: "", 
+    cep: "", 
     city: "",
     state: "",
     category_id: "",
@@ -29,7 +35,6 @@ export default function AddService() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Lista de categorias disponíveis para serviços
   const categories = [
     { id: "559ad555-6da5-4122-a28c-cf6a7d4838d2", name: "Transporte" }, 
     { id: "024ef469-a030-4a8b-a09a-5365a16e3b9b", name: "Sapataria" }, 
@@ -55,37 +60,43 @@ export default function AddService() {
     const files = e.target.files;
     if (!files) return;
 
-    const newImages: File[] = [];
-    const newPreviews: string[] = [];
+    const filesArray = Array.from(files);
+    let validFiles: File[] = [];
+    let validPreviews: string[] = [];
+    let localError: string | null = null;
+    
+    setError(null);
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      
+    filesArray.forEach(file => {
       if (!file.type.startsWith('image/')) {
-        setError('Por favor, selecione apenas arquivos de imagem.');
-        continue;
+        localError = 'Por favor, selecione apenas arquivos de imagem.';
+        return;
       }
-
       if (file.size > 5 * 1024 * 1024) {
-        setError('Cada imagem deve ter no máximo 5MB.');
-        continue;
+        localError = 'Cada imagem deve ter no máximo 5MB.';
+        return;
       }
-
-      newImages.push(file);
-      
+      validFiles.push(file);
       const reader = new FileReader();
       reader.onload = (e) => {
         if (e.target?.result) {
-          newPreviews.push(e.target.result as string);
-          if (newPreviews.length === newImages.length) {
-            setImagePreviews(prev => [...prev, ...newPreviews]);
-          }
+          validPreviews.push(e.target.result as string);
+          
+          setImagePreviews(prev => [...prev, e.target!.result as string]);
         }
       };
       reader.readAsDataURL(file);
-    }
+    });
 
-    setImages(prev => [...prev, ...newImages]);
+    if (localError) {
+        setError(localError);
+    }
+    
+    setImages(prev => [...prev, ...validFiles]);
+    
+    if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
   };
 
   const removeImage = (index: number) => {
@@ -131,7 +142,8 @@ export default function AddService() {
     e.preventDefault();
     setError(null);
     
-    if (!form.name || !form.description || !form.city || !form.state || !form.category_id) {
+    if (!form.name || !form.description || !form.city || !form.state || !form.category_id ||
+      !form.logradouro || !form.numero || !form.bairro || !form.cep) {
       setError("Preencha todos os campos obrigatórios.");
       return;
     }
@@ -156,6 +168,11 @@ export default function AddService() {
       const serviceData = {
         name: form.name,
         description: finalDescription,
+        logradouro: form.logradouro, 
+        numero: form.numero, 
+        complemento: form.complemento, 
+        bairro: form.bairro, 
+        cep: form.cep, 
         city: form.city,
         state: form.state,
         category_id: form.category_id,
@@ -173,9 +190,11 @@ export default function AddService() {
       
       if (serviceError) {
         if (serviceError.code === '42501') {
-          throw new Error("Permissão negada. Verifique as políticas de segurança do banco de dados.");
+          throw new Error("Permissão negada. Verifique as políticas de segurança (RLS).");
         }
-        
+        if (serviceError.code === '42703') {
+           throw new Error("Coluna não encontrada. Você lembrou de rodar o 'ALTER TABLE' no Supabase?");
+        }
         throw new Error(serviceError.message);
       }
       
@@ -184,7 +203,7 @@ export default function AddService() {
         
         const { error: updateError } = await supabase
           .from("services")
-          .update({ images: imageUrls })
+          .update({ images: imageUrls }) 
           .eq("id", insertedService.id);
         
         if (updateError) {
@@ -199,7 +218,7 @@ export default function AddService() {
         } 
       });
     } catch (error: any) {
-      setError(error.message || "Erro ao adicionar serviço. Verifique o console para mais detalhes.");
+      setError(error.message || "Erro ao adicionar serviço. Verifique o console.");
     } finally {
       setLoading(false);
       setUploadProgress(0);
@@ -223,210 +242,337 @@ export default function AddService() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background p-4 py-8 flex items-center justify-center">
-      <div className="max-w-2xl w-full mx-auto">
-        <h1 className="text-2xl md:text-3xl font-bold mb-6 text-center text-primary">Adicionar Serviço</h1>
+    <div className="min-h-screen flex flex-col items-center bg-gray-50 p-4 py-8">
+      <div className="w-full max-w-xl md:max-w-2xl lg:max-w-3xl bg-white rounded-2xl shadow-2xl p-6 md:p-8 lg:p-12 border border-green-100 relative">
         
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-primary/10">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block mb-2 font-semibold text-primary">Nome do Serviço *</label>
-              <Input 
-                name="name" 
-                value={form.name} 
-                onChange={handleChange} 
-                required 
-                className="bg-muted/30" 
-                placeholder="Ex: Reparo de bicicletas"
-              />
-            </div>
+        {/* TÍTULO PRINCIPAL */}
+        <h1 className="flex flex-col items-center justify-center text-3xl md:text-4xl font-extrabold mb-8 text-center text-green-700 tracking-tight border-b-2 border-green-100 pb-4">
+            <Briefcase className="w-8 h-8 md:w-10 md:h-10 mb-2 text-green-500" /> 
+            Anunciar Novo Serviço
+        </h1>
+        
+        <form onSubmit={handleSubmit} className="space-y-8 md:space-y-10">
+          
+          {/* GRUPO: DETALHES DO SERVIÇO */}
+          <div className="border border-gray-200 rounded-xl p-5 md:p-6 bg-white shadow-lg">
+            <h2 className="flex items-center text-xl md:text-2xl font-bold mb-5 text-green-600 border-b pb-3 border-green-100">
+              <Leaf className="w-5 h-5 md:w-6 md:h-6 mr-3 text-green-500" />
+              1. Detalhes e Especialidade
+            </h2>
             
-            <div>
-              <label className="block mb-2 font-semibold text-primary">Descrição *</label>
-              <Textarea 
-                name="description" 
-                value={form.description} 
-                onChange={handleChange} 
-                required 
-                className="bg-muted/30 min-h-[100px]" 
-                placeholder="Descreva o serviço em detalhes..."
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div>
-                <label className="block mb-2 font-semibold text-primary">Cidade *</label>
+                <label className="block mb-2 font-semibold text-gray-700">Nome do Serviço *</label>
                 <Input 
-                  name="city" 
-                  value={form.city} 
+                  name="name" 
+                  value={form.name} 
                   onChange={handleChange} 
                   required 
-                  className="bg-muted/30" 
-                  placeholder="São Paulo"
+                  className="bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 focus:ring-2 focus:ring-green-100" 
+                  placeholder="Ex: Consultoria em Jardinagem Orgânica"
                 />
               </div>
+              
               <div>
-                <label className="block mb-2 font-semibold text-primary">Estado *</label>
-                <Input 
-                  name="state" 
-                  value={form.state} 
+                <label className="block mb-2 font-semibold text-gray-700">Descrição *</label>
+                <Textarea 
+                  name="description" 
+                  value={form.description} 
                   onChange={handleChange} 
                   required 
-                  className="bg-muted/30" 
-                  placeholder="SP"
-                  maxLength={2}
+                  className="bg-gray-50 border-gray-300 min-h-[100px] md:min-h-[120px] transition duration-300 hover:border-green-400 focus:border-green-600 focus:ring-2 focus:ring-green-100" 
+                  placeholder="Descreva sua experiência, o que o serviço inclui e como ele funciona..."
                 />
               </div>
-            </div>
-            
-            <div>
-              <label className="block mb-2 font-semibold text-primary">Categoria *</label>
-              <select
-                name="category_id"
-                value={form.category_id}
-                onChange={handleChange}
-                required
-                className="w-full border rounded px-3 py-2 bg-muted/30"
-              >
-                <option value="">Selecione uma categoria</option>
-                {categories.map(category => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
 
-            <div className={form.category_id === "d5a2a7b0-7ac1-4dfe-9126-62391b076ef6" ? "block" : "hidden"}>
-              <label className="block mb-2 font-semibold text-primary">
-                Especifique a categoria *
-              </label>
-              <Input 
-                name="custom_category" 
-                value={form.custom_category} 
-                onChange={handleChange} 
-                required={form.category_id === "d5a2a7b0-7ac1-4dfe-9126-62391b076ef6"}
-                className="bg-muted/30" 
-                placeholder="Digite o nome da categoria personalizada"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Esta informação será adicionada à descrição do serviço.
-              </p>
-            </div>
-            
-            <div>
-              <label className="block mb-2 font-semibold text-primary">Disponibilidade *</label>
-              <select
-                name="availability"
-                value={form.availability}
-                onChange={handleChange}
-                required
-                className="w-full border rounded px-3 py-2 bg-muted/30"
-              >
-                <option value="disponivel">Disponível</option>
-                <option value="indisponivel">Indisponível</option>
-                <option value="sob_consulta">Sob consulta</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block mb-2 font-semibold text-primary">Preço por Hora (R$)</label>
-              <Input 
-                type="number" 
-                name="price_per_hour" 
-                value={form.price_per_hour} 
-                onChange={handleChange} 
-                className="bg-muted/30" 
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Deixe em 0 para serviços gratuitos ou de doação
-              </p>
-            </div>
-
-            <div>
-              <label className="block mb-2 font-semibold text-primary">Imagens do Serviço</label>
-              <div 
-                className="border-2 border-dashed border-primary/30 rounded-lg p-6 text-center cursor-pointer hover:bg-primary/5 transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageUpload}
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                />
-                <Upload className="mx-auto h-12 w-12 text-primary/50 mb-2" />
-                <p className="text-primary/70">Clique para adicionar imagens</p>
-                <p className="text-sm text-muted-foreground mt-1">Máximo 5 imagens, 5MB cada</p>
-              </div>
-            </div>
-
-            {imagePreviews.length > 0 && (
-              <div>
-                <h3 className="font-medium text-primary mb-2">Pré-visualização das imagens:</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {imagePreviews.map((preview, index) => (
-                    <div key={index} className="relative group">
-                      <img 
-                        src={preview} 
-                        alt={`Preview ${index + 1}`}
-                        className="h-24 w-full object-cover rounded-md"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Categoria */}
+                <div className="relative">
+                  <label className="block mb-2 font-semibold text-gray-700">Categoria *</label>
+                  <select
+                    name="category_id"
+                    value={form.category_id}
+                    onChange={handleChange}
+                    required
+                    className="w-full border rounded-lg px-3 py-2.5 bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 appearance-none" 
+                  >
+                    <option value="">Selecione uma categoria</option>
+                    {categories.map(category => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Disponibilidade */}
+                <div className="relative">
+                    <label className="block mb-2 font-semibold text-gray-700">Disponibilidade *</label>
+                    <select
+                        name="availability"
+                        value={form.availability}
+                        onChange={handleChange}
+                        required
+                        className="w-full border rounded-lg px-3 py-2.5 bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 appearance-none" 
+                    >
+                        <option value="disponivel">Disponível</option>
+                        <option value="indisponivel">Indisponível</option>
+                        <option value="sob_consulta">Sob consulta</option>
+                    </select>
                 </div>
               </div>
-            )}
 
-            {uploadProgress > 0 && uploadProgress < 100 && (
+              {/* Campo Categoria Customizada (Condicional) */}
+              <div className={`transition-all duration-300 ease-in-out ${form.category_id === "d5a2a7b0-7ac1-4dfe-9126-62391b076ef6" ? "block mt-4" : "hidden"}`}>
+                <label className="block mb-2 font-semibold text-gray-700">
+                  Especifique a Categoria *
+                </label>
+                <Input 
+                  name="custom_category" 
+                  value={form.custom_category} 
+                  onChange={handleChange} 
+                  required={form.category_id === "d5a2a7b0-7ac1-4dfe-9126-62391b076ef6"}
+                  className="bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 focus:ring-2 focus:ring-green-100" 
+                  placeholder="Ex: Aulas particulares de costura"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Esta informação será adicionada à descrição.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* GRUPO: PREÇO E COBRANÇA */}
+          <div className="border border-gray-200 rounded-xl p-5 md:p-6 bg-white shadow-lg">
+            <h2 className="flex items-center text-xl md:text-2xl font-bold mb-5 text-green-600 border-b pb-3 border-green-100">
+                <Clock className="w-5 h-5 md:w-6 md:h-6 mr-3 text-green-500" />
+                2. Preço por Hora
+            </h2>
+
+            <div>
+                <label className="block mb-2 font-semibold text-gray-700">Preço por Hora (R$)</label>
+                <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">R$</span>
+                    <Input 
+                        type="number" 
+                        name="price_per_hour" 
+                        value={form.price_per_hour} 
+                        onChange={handleChange} 
+                        className="pl-10 bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 focus:ring-2 focus:ring-green-100" 
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
+                    />
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                    Deixe em 0.00 para serviços gratuitos ou "a combinar".
+                </p>
+            </div>
+          </div>
+
+          {/* GRUPO: ENDEREÇO */}
+          <div className="border border-gray-200 rounded-xl p-5 md:p-6 bg-white shadow-lg">
+            <h2 className="flex items-center text-xl md:text-2xl font-bold mb-5 text-green-600 border-b pb-3 border-green-100">
+                <MapPin className="w-5 h-5 md:w-6 md:h-6 mr-3 text-green-500" />
+                3. Local de Atendimento
+            </h2>
+
+            <div className="space-y-4">
+                {/* Linha 1: Logradouro e Número */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-2">
+                    <label className="block mb-2 font-semibold text-gray-700">Logradouro (Rua, Av.) *</label>
+                    <Input 
+                      name="logradouro" 
+                      value={form.logradouro} 
+                      onChange={handleChange} 
+                      required 
+                      className="bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 focus:ring-2 focus:ring-green-100" 
+                      placeholder="Ex: Rua das Flores"
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    <label className="block mb-2 font-semibold text-gray-700">Número *</label>
+                    <Input 
+                      name="numero" 
+                      value={form.numero} 
+                      onChange={handleChange} 
+                      required 
+                      className="bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 focus:ring-2 focus:ring-green-100" 
+                      placeholder="Ex: 123"
+                    />
+                  </div>
+                </div>
+                
+                {/* Linha 2: Complemento */}
+                <div>
+                  <label className="block mb-2 font-semibold text-gray-700">Complemento (opcional)</label>
+                  <Input 
+                    name="complemento" 
+                    value={form.complemento} 
+                    onChange={handleChange} 
+                    className="bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 focus:ring-2 focus:ring-green-100" 
+                    placeholder="Ex: Sala 101, Fundos"
+                  />
+                </div>
+
+                {/* Linha 3: Bairro e CEP */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block mb-2 font-semibold text-gray-700">Bairro *</label>
+                    <Input 
+                      name="bairro" 
+                      value={form.bairro} 
+                      onChange={handleChange} 
+                      required 
+                      className="bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 focus:ring-2 focus:ring-green-100" 
+                      placeholder="Ex: Jardim Botânico"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-2 font-semibold text-gray-700">CEP *</label>
+                    <Input 
+                      name="cep" 
+                      value={form.cep} 
+                      onChange={handleChange} 
+                      required 
+                      className="bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 focus:ring-2 focus:ring-green-100" 
+                      placeholder="Ex: 01000-000"
+                    />
+                  </div>
+                </div>
+                
+                {/* Linha 4: Cidade e Estado */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block mb-2 font-semibold text-gray-700">Cidade *</label>
+                    <Input 
+                      name="city" 
+                      value={form.city} 
+                      onChange={handleChange} 
+                      required 
+                      className="bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 focus:ring-2 focus:ring-green-100" 
+                      placeholder="São Paulo"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-2 font-semibold text-gray-700">Estado (UF) *</label>
+                    <Input 
+                      name="state" 
+                      value={form.state} 
+                      onChange={handleChange} 
+                      required 
+                      className="bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 focus:ring-2 focus:ring-green-100 text-center uppercase" 
+                      placeholder="SP"
+                      maxLength={2}
+                    />
+                  </div>
+                </div>
+            </div>
+          </div>
+          
+          {/* GRUPO: IMAGENS */}
+          <div className="border border-gray-200 rounded-xl p-5 md:p-6 bg-white shadow-lg">
+            <h2 className="flex items-center text-xl md:text-2xl font-bold mb-5 text-green-600 border-b pb-3 border-green-100">
+                <Upload className="w-5 h-5 md:w-6 md:h-6 mr-3 text-green-500" />
+                4. Portfólio (Imagens)
+            </h2>
+
+            <div>
+              {/* INPUT DE ARQUIVO ESCONDIDO - Solução para o botão teimoso */}
+              <input 
+                id="image-upload"
+                type="file" 
+                multiple 
+                accept="image/*" 
+                onChange={handleImageUpload}
+                ref={fileInputRef}
+                className="hidden" 
+              />
+
+              {/* LABEL/BOTÃO CUSTOMIZADO */}
+              <label 
+                htmlFor="image-upload" 
+                className="w-full flex items-center justify-center space-x-2 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-md bg-green-600 hover:bg-green-700 cursor-pointer"
+              >
+                <Upload className="w-5 h-5" />
+                <span>Clique para Adicionar Imagens do Serviço</span>
+              </label>
+              
+              {imagePreviews.length > 0 && (
+                <p className="text-sm text-gray-500 mt-2 text-center">
+                  **{images.length}** imagens selecionadas.
+                </p>
+              )}
+              
+              <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {imagePreviews.map((preview, index) => (
+                  <div key={index} className="relative group shadow-md hover:shadow-xl transition-shadow rounded-lg overflow-hidden ring-2 ring-offset-2 ring-green-500/50">
+                    <img 
+                      src={preview} 
+                      alt={`Preview ${index}`} 
+                      className="w-full h-28 object-cover transition duration-300 group-hover:scale-105"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity transform hover:scale-110 shadow-lg"
+                      aria-label="Remover imagem"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {/* BARRA DE PROGRESSO DE UPLOAD */}
+          {uploadProgress > 0 && uploadProgress < 100 && (
+            <div className="w-full mt-4">
               <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div 
-                  className="bg-primary h-2.5 rounded-full" 
+                  className="bg-green-600 h-2.5 rounded-full transition-all duration-500" 
                   style={{ width: `${uploadProgress}%` }}
                 ></div>
-                <p className="text-sm text-center mt-1">Enviando imagens: {uploadProgress}%</p>
               </div>
-            )}
-            
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-red-600 text-sm">{error}</p>
-              </div>
-            )}
-            
+              <p className="text-sm text-center text-green-700 mt-1">
+                Enviando imagens: {uploadProgress}%
+              </p>
+            </div>
+          )}
+          
+          {/* DIV DE ERRO (destacada) */}
+          {error && (
+            <div className="flex items-start p-4 bg-red-100 border-l-4 border-red-500 rounded-lg shadow-md">
+                <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+                <p className="text-red-800 font-medium text-sm">{error}</p>
+            </div>
+          )}
+          
+          {/* BOTÕES DE AÇÃO */}
+          <div className="space-y-4 pt-4">
             <Button 
               type="submit" 
-              className="w-full mt-2 bg-gradient-to-r from-primary to-primary/80 text-lg py-3 rounded-xl hover:from-primary/90 hover:to-primary transition-all" 
+              className="w-full bg-green-600 text-white text-xl font-extrabold py-3.5 rounded-xl shadow-xl hover:bg-green-700 transition-all transform hover:scale-[1.01] flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed" 
               disabled={loading}
             >
-              {loading ? "Adicionando..." : "Adicionar Serviço"}
+              <Briefcase className={`w-5 h-5 mr-3 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? "Publicando Serviço..." : "Publicar Serviço"}
             </Button>
             
             <Button
               type="button"
               variant="outline"
-              className="w-full mt-2 text-lg py-3 rounded-xl border-primary/40 hover:bg-primary/10 transition-colors"
-              onClick={() => navigate(-1)}
+              className="w-full text-green-600 border-green-400 text-lg font-bold py-3.5 rounded-xl hover:bg-green-50 transition-colors"
+              onClick={() => navigate("/")}
             >
-              Voltar
+              Voltar ao Início
             </Button>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
 
-      {/* Modal de visualização */}
       {showPreviewModal && selectedService && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client"; 
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
 
@@ -14,43 +14,84 @@ const ResetPassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialCheckDone, setIsInitialCheckDone] = useState(false); 
   const [isValidSession, setIsValidSession] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Escuta por mudanças no estado de autenticação do Supabase
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_IN") {
-          // Se o evento for de login (o que acontece quando o link de redefinição é acessado),
-          // define a sessão como válida.
+    let active = true;
+
+    const hashIsPresent = window.location.hash.includes('access_token');
+
+    const initialCheckAndListener = async () => {
+
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (active) {
+        if (session) {
           setIsValidSession(true);
-        } else if (event === "SIGNED_OUT") {
-          // Se o usuário sair, a sessão se torna inválida.
-          setIsValidSession(false);
+        }
+       
+        setIsInitialCheckDone(true);
+      }
+    };
+   
+    if (hashIsPresent) {
+        setTimeout(() => {
+            initialCheckAndListener();
+        }, 300); 
+
+    } else {
+        initialCheckAndListener();
+    }
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (active) {
+        
+          if (event === "SIGNED_IN" && session) {
+            setIsValidSession(true);
+            setIsInitialCheckDone(true); 
+          } else if (event === "SIGNED_OUT") {
+            setIsValidSession(false);
+            setIsInitialCheckDone(true);
+          }
+          
+           if (event === "INITIAL_SESSION") {
+             setIsValidSession(!!session);
+             if (!!session || !hashIsPresent) {
+                 setIsInitialCheckDone(true);
+             }
+          }
         }
       }
     );
 
-    // Limpa a inscrição quando o componente for desmontado para evitar vazamento de memória.
     return () => {
+      active = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); 
 
-  // Novo useEffect para limpar a URL após a sessão ser validada
   useEffect(() => {
-    // Garante que a limpeza só aconteça se a sessão for válida e o hash existir
     if (isValidSession && window.location.hash) {
-      window.history.replaceState(
-        null,
-        "",
-        window.location.pathname
-      );
+      
+      const timer = setTimeout(() => {
+        if (window.location.hash) {
+            
+            window.history.replaceState(
+                null,
+                "",
+                window.location.pathname
+            );
+        }
+      }, 500); 
+
+      return () => clearTimeout(timer);
     }
   }, [isValidSession]);
-
+  
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -75,30 +116,51 @@ const ResetPassword = () => {
     setIsLoading(true);
 
     try {
+     
       const { error } = await supabase.auth.updateUser({
         password: password,
       });
 
       if (error) {
+      
         throw error;
       }
 
       toast({
         title: "Senha alterada",
-        description: "Sua senha foi redefinida com sucesso.",
+        description: "Sua senha foi redefinida com sucesso. Você será redirecionado em breve.",
       });
 
-      navigate("/auth");
+      setTimeout(() => {
+        navigate("/auth");
+      }, 2000);
+
     } catch (error: any) {
+      let errorMessage = error.message || "Erro ao redefinir senha.";
+      
+      if (errorMessage.includes("Auth session missing") || errorMessage.includes("Invalid Refresh Token")) {
+         errorMessage = "Sessão expirada ou inválida. Por favor, solicite um novo link de redefinição.";
+         setIsValidSession(false); 
+      }
+
       toast({
         title: "Erro",
-        description: error.message || "Erro ao redefinir senha.",
+        description: errorMessage,
         variant: "destructive",
       });
+      
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (!isInitialCheckDone) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!isValidSession) {
     return (
