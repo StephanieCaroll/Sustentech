@@ -697,10 +697,10 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
             <div className="w-full md:w-2/3 flex flex-col min-h-0">
               {activeConversation && activeParticipant ? (
                 <>
-                  {/* Área de mensagens - MAIS CURTA para dar espaço ao input */}
+                
                   <div 
                     className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/30 min-h-0"
-                    style={{ maxHeight: '60vh' }}
+                    style={{ maxHeight: '65vh' }}
                   >
                     {messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full">
@@ -754,8 +754,7 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                       </>
                     )}
                   </div>
-
-                  {/* Área de input - MAIS PARA CIMA com tamanho normal */}
+m
                   <div className="p-3 border-t bg-background flex-shrink-0">
                     <div className="flex gap-2 items-center">
                       <input
