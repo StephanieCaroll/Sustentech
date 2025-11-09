@@ -95,6 +95,7 @@ const ItemCard = ({
   const [ratingComment, setRatingComment] = useState("");
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [hasUserRated, setHasUserRated] = useState(false);
+  const [userReviewId, setUserReviewId] = useState<string | null>(null);
 
   const [editForm, setEditForm] = useState<EditForm>({
     title: item.title,
@@ -129,64 +130,115 @@ const ItemCard = ({
 
   const fetchItemReviews = async (itemId: string) => {
     if (!itemId) return;
-
+    
     setLoadingReviews(true);
     try {
+      console.log("🔄 Buscando avaliações para o item:", itemId);
+      
       const { data: reviewsData, error } = await supabase
         .from("item_reviews")
-        .select(
-          `
+        .select(`
           id, 
           rating, 
           comment, 
           created_at, 
-          user_id,
-          profiles:user_id (name, avatar_url)
-        `
-        )
+          user_id
+        `)
         .eq("item_id", itemId)
         .order("created_at", { ascending: false })
         .limit(5);
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Erro ao buscar avaliações:", error);
+        if (error.code === '42P01' || error.code === 'PGRST116') {
+          console.warn("Tabela item_reviews não encontrada");
+          setItemReviews([]);
+          setItemRatingStats({ average: 0, count: 0 });
+          setHasUserRated(false);
+          setUserReviewId(null);
+          return;
+        }
+        throw error;
+      }
 
-      if (reviewsData) {
-        setItemReviews(reviewsData as ItemReview[]);
+      console.log("📊 Avaliações encontradas:", reviewsData);
 
+      if (reviewsData && reviewsData.length > 0) {
+        const userIds = reviewsData.map(review => review.user_id);
+        console.log("🆔 IDs para buscar perfis:", userIds);
+        
+        const { data: allProfiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("user_id, name, avatar_url")
+          .in("user_id", userIds);
+
+        console.log("📋 Perfis encontrados:", allProfiles);
+        console.log("❌ Erro perfis:", profilesError);
+
+        const reviewsWithProfiles = reviewsData.map((review) => {
+        
+          const userProfile = allProfiles?.find(profile => profile.user_id === review.user_id);
+          console.log(`🔍 Buscando perfil para user_id ${review.user_id}:`, userProfile);
+          
+          if (userProfile) {
+            console.log(`✅ Perfil encontrado: ${userProfile.name}`);
+            return {
+              ...review,
+              profiles: {
+                name: userProfile.name || "Sem nome",
+                avatar_url: userProfile.avatar_url || ""
+              }
+            };
+          } else {
+            console.log(`❌ Perfil NÃO encontrado para user_id: ${review.user_id}`);
+            return {
+              ...review,
+              profiles: {
+                name: "Usuário Anônimo",
+                avatar_url: ""
+              }
+            };
+          }
+        });
+
+        console.log("🎯 Avaliações FINAIS com perfis:", reviewsWithProfiles);
+        setItemReviews(reviewsWithProfiles as ItemReview[]);
+        
         if (user) {
-          const userReview = reviewsData.find(
-            (review) => review.user_id === user.id
-          );
+          const userReview = reviewsData.find(review => review.user_id === user.id);
+          console.log("🔍 Avaliação do usuário atual:", userReview);
           setHasUserRated(!!userReview);
           if (userReview) {
             setUserRating(userReview.rating);
             setRatingComment(userReview.comment || "");
+            setUserReviewId(userReview.id);
+          } else {
+            setUserRating(0);
+            setRatingComment("");
+            setUserReviewId(null);
           }
         }
-
-        if (reviewsData.length > 0) {
-          const totalRating = reviewsData.reduce(
-            (sum, review) => sum + review.rating,
-            0
-          );
-          const averageRating = totalRating / reviewsData.length;
-          setItemRatingStats({
-            average: Math.round(averageRating * 10) / 10,
-            count: reviewsData.length,
-          });
-        } else {
-          setItemRatingStats({ average: 0, count: 0 });
-        }
+        
+        const totalRating = reviewsData.reduce((sum, review) => sum + review.rating, 0);
+        const averageRating = totalRating / reviewsData.length;
+        setItemRatingStats({
+          average: Math.round(averageRating * 10) / 10,
+          count: reviewsData.length,
+        });
+        
       } else {
+        console.log("📭 Nenhuma avaliação encontrada");
         setItemReviews([]);
         setItemRatingStats({ average: 0, count: 0 });
         setHasUserRated(false);
+        setUserReviewId(null);
       }
     } catch (error) {
-      console.error("Erro ao buscar avaliações do item:", error);
+      console.error("💥 Erro ao buscar avaliações do item:", error);
       setItemReviews([]);
       setItemRatingStats({ average: 0, count: 0 });
       setHasUserRated(false);
+      setUserReviewId(null);
     } finally {
       setLoadingReviews(false);
     }
@@ -236,17 +288,17 @@ const ItemCard = ({
     }
   }, [user, internalItem.id]);
 
- useEffect(() => {
-  if (internalItem.id) {
-    fetchItemReviews(internalItem.id);
-  }
-}, [internalItem.id]);
+  useEffect(() => {
+    if (internalItem.id) {
+      fetchItemReviews(internalItem.id);
+    }
+  }, [internalItem.id]);
 
-useEffect(() => {
-  if (internalItem.id) {
-    fetchItemReviews(internalItem.id);
-  }
-}, []);
+  useEffect(() => {
+    if (internalItem.id) {
+      fetchItemReviews(internalItem.id);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isExpanded && hasUnsavedChanges && isEditing) {
@@ -405,7 +457,7 @@ useEffect(() => {
 
     setIsSubmittingRating(true);
     try {
-      if (hasUserRated) {
+      if (hasUserRated && userReviewId) {
         const { error } = await supabase
           .from("item_reviews")
           .update({
@@ -413,8 +465,7 @@ useEffect(() => {
             comment: ratingComment,
             updated_at: new Date().toISOString(),
           })
-          .eq("item_id", internalItem.id)
-          .eq("user_id", user.id);
+          .eq("id", userReviewId);
 
         if (error) throw error;
 
@@ -440,11 +491,17 @@ useEffect(() => {
 
       await fetchItemReviews(internalItem.id);
       setIsRating(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao enviar avaliação:", error);
+      
+      let errorMessage = "Não foi possível enviar sua avaliação";
+      if (error?.code === '23505') {
+        errorMessage = "Você já avaliou este item";
+      }
+
       toast({
         title: "Erro",
-        description: "Não foi possível enviar sua avaliação",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -472,6 +529,7 @@ useEffect(() => {
       setUserRating(0);
       setRatingComment("");
       setHasUserRated(false);
+      setUserReviewId(null);
       await fetchItemReviews(internalItem.id);
     } catch (error) {
       console.error("Erro ao excluir avaliação:", error);
@@ -1041,11 +1099,9 @@ useEffect(() => {
                 )}
                 <div className="flex items-center space-x-1 mt-1">
                   {renderStars(itemRatingStats.average, "sm")}
-                  {itemRatingStats.count > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      ({itemRatingStats.count})
-                    </span>
-                  )}
+                  <span className="text-xs text-muted-foreground">
+                    ({itemRatingStats.count})
+                  </span>
                 </div>
               </div>
             </div>
@@ -1091,6 +1147,14 @@ useEffect(() => {
             <div className="pt-4 space-y-4 md:grid md:grid-cols-[1fr_2fr] md:gap-6 md:space-y-0">
               {isOwner && !isEditing && (
                 <div className="absolute top-4 right-4 z-[51] flex gap-2">
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="h-10 w-10 rounded-full bg-background/80 backdrop-blur"
+                    onClick={startEditing}
+                  >
+                    <Edit className="h-5 w-5" />
+                  </Button>
                   <Button
                     size="icon"
                     variant="secondary"
@@ -1206,9 +1270,18 @@ useEffect(() => {
 
               <div className="md:col-span-1 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl md:text-3xl font-bold text-green-600 break-words flex-1 mr-4">
-                    {internalItem.title}
-                  </h2>
+                  {isEditing ? (
+                    <Input
+                      name="title"
+                      value={editForm.title}
+                      onChange={handleEditChange}
+                      className="text-2xl md:text-3xl font-bold text-green-600"
+                    />
+                  ) : (
+                    <h2 className="text-2xl md:text-3xl font-bold text-green-600 break-words flex-1 mr-4">
+                      {internalItem.title}
+                    </h2>
+                  )}
                   <Button
                     size="icon"
                     variant="ghost"
@@ -1249,11 +1322,9 @@ useEffect(() => {
                   )}
                   <div className="flex items-center space-x-2">
                     {renderStars(itemRatingStats.average, "md")}
-                    {itemRatingStats.count > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        ({itemRatingStats.count})
-                      </span>
-                    )}
+                    <span className="text-sm text-muted-foreground">
+                      ({itemRatingStats.count})
+                    </span>
                   </div>
                 </div>
 
@@ -1466,7 +1537,7 @@ useEffect(() => {
                         <Textarea
                           value={ratingComment}
                           onChange={(e) => setRatingComment(e.target.value)}
-                          placeholder="Compartilhe sua experiência com este serviço..."
+                          placeholder="Compartilhe sua experiência com este produto..."
                           rows={3}
                           onMouseDown={(e) => e.stopPropagation()}
                           onKeyDown={(e) => e.stopPropagation()}
@@ -1524,19 +1595,19 @@ useEffect(() => {
                         >
                           <Avatar className="h-10 w-10 shrink-0">
                             <AvatarImage
-                              src={review.profiles?.avatar_url}
-                              alt={review.profiles?.name}
+                              src={review.profiles?.avatar_url || ""}
+                              alt={review.profiles?.name || "Usuário"}
                             />
                             <AvatarFallback className="bg-primary/10 text-primary text-xs">
                               {review.profiles?.name
                                 ?.slice(0, 2)
-                                .toUpperCase() || "??"}
+                                .toUpperCase() || "US"}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start mb-1">
                               <h5 className="font-medium text-sm text-gray-800">
-                                {review.profiles?.name || "Avaliador Anônimo"}
+                                {review.profiles?.name || "Usuário Anônimo"}
                               </h5>
                               <span className="text-xs text-gray-500">
                                 {new Date(review.created_at).toLocaleDateString(
@@ -1545,9 +1616,11 @@ useEffect(() => {
                               </span>
                             </div>
                             {renderStars(review.rating, "sm")}
-                            <p className="text-sm text-gray-600 mt-1 break-words">
-                              {review.comment}
-                            </p>
+                            {review.comment && (
+                              <p className="text-sm text-gray-600 mt-1 break-words">
+                                {review.comment}
+                              </p>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -1672,7 +1745,7 @@ useEffect(() => {
                         )}
                       </div>
                       <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
-                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                        {renderStars(internalItem.profiles?.rating || 0, "sm")}
                         <span>
                           {internalItem.profiles?.rating || 0} •{" "}
                           {internalItem.profiles?.total_reviews || 0} avaliações
