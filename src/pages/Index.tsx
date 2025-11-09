@@ -9,8 +9,71 @@ import ServiceCard from "@/components/ServiceCard";
 import { Messages } from "@/components/Message";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
-import { Loader2, MapPin, Map, X } from "lucide-react";
+import { Loader2, MapPin, Map, X, Leaf, Recycle, Sprout } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const LoadingScreen = () => {
+    return (
+        <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-green-50 via-white to-blue-50 overflow-hidden relative">
+          
+            <div className="absolute inset-0 overflow-hidden">
+                <div className="absolute -top-10 -left-10 w-32 h-32 bg-green-200 rounded-full opacity-20 animate-pulse"></div>
+                <div className="absolute top-1/4 -right-8 w-24 h-24 bg-blue-200 rounded-full opacity-30 animate-pulse delay-300"></div>
+                <div className="absolute bottom-1/3 left-1/4 w-20 h-20 bg-emerald-200 rounded-full opacity-25 animate-pulse delay-700"></div>
+                <div className="absolute bottom-20 right-1/4 w-28 h-28 bg-teal-200 rounded-full opacity-20 animate-pulse delay-500"></div>
+            </div>
+
+            <div className="relative z-10 text-center space-y-8 px-6">
+               
+                <div className="relative mx-auto w-24 h-24">
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-blue-500 rounded-2xl animate-spin-slow"></div>
+                    <div className="absolute inset-2 bg-white rounded-xl flex items-center justify-center">
+                        <Leaf className="h-10 w-10 text-green-500" />
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+                        SustenTech
+                    </h1>
+                    <p className="text-gray-600 text-lg max-w-md mx-auto">
+                        Conectando você a um consumo mais consciente e sustentável
+                    </p>
+                    
+                    <div className="w-64 mx-auto bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div 
+                            className="bg-gradient-to-r from-green-400 to-blue-500 h-full rounded-full"
+                            style={{
+                                animation: 'progress 2s ease-in-out infinite'
+                            }}
+                        ></div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-6 max-w-md mx-auto pt-4">
+                    <div className="text-center">
+                        <Recycle className="h-6 w-6 text-green-500 mx-auto mb-2 animate-bounce" />
+                        <div className="text-sm text-gray-600">Carregando itens</div>
+                    </div>
+                    <div className="text-center">
+                        <Sprout className="h-6 w-6 text-green-500 mx-auto mb-2 animate-bounce delay-200" />
+                        <div className="text-sm text-gray-600">Buscando serviços</div>
+                    </div>
+                    <div className="text-center">
+                        <Leaf className="h-6 w-6 text-green-500 mx-auto mb-2 animate-bounce delay-400" />
+                        <div className="text-sm text-gray-600">Preparando comunidade</div>
+                    </div>
+                </div>
+
+                <div className="flex justify-center space-x-2 pt-4">
+                    <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce"></div>
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-bounce delay-150"></div>
+                    <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce delay-300"></div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const Index = () => {
     const [activeTab, setActiveTab] = useState<"items" | "services">("items");
@@ -30,9 +93,7 @@ const Index = () => {
         cat.type === (activeTab === "items" ? "item" : "service")
     );
 
-
     const findNearbyItemsAndServices = (lat: number, lng: number) => {
-
         setNearbyItems(items);
         setNearbyServices(services);
     };
@@ -64,9 +125,7 @@ const Index = () => {
         if (!authLoading && !user) navigate("/auth");
     }, [user, authLoading, navigate]);
 
-
     useEffect(() => {
-
         if (isMessagesOpen) {
             document.body.style.overflow = 'hidden';
         } else {
@@ -77,18 +136,12 @@ const Index = () => {
         };
     }, [isMessagesOpen]);
 
-
     if (authLoading || !user) {
-        return (
-            <div className="min-h-screen w-full flex items-center justify-center overflow-x-hidden">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-        );
+        return <LoadingScreen />;
     }
 
     return (
         <div className="min-h-screen w-full bg-gradient-to-b from-background to-muted/30 overflow-x-hidden relative">
-
             <div className="fixed top-0 left-0 right-0 z-50 md:z-100 bg-background/95 backdrop-blur-sm border-b border-border/60">
                 <Header
                     searchTerm={searchTerm}
@@ -121,14 +174,12 @@ const Index = () => {
 
                 {activeTab === "items" ? (
                     items.length > 0 ? (
-                        
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
                             {items.map((item) => (
                                 <ItemCard 
                                     key={item.id} 
                                     item={item} 
                                     onStartConversation={handleStartConversation}
-                                    
                                 />
                             ))}
                         </div>
@@ -150,7 +201,6 @@ const Index = () => {
                         </div>
                     )
                 ) : services.length > 0 ? (
-                    
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
                         {services.map((service) => (
                             <ServiceCard 
