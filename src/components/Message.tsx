@@ -603,7 +603,6 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
       <div className="w-screen h-screen bg-background flex flex-col">
         
-       
         <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
           {!showConversationList && activeParticipant ? (
             <div className="flex items-center gap-3">
@@ -697,10 +696,10 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
             <div className="w-full md:w-2/3 flex flex-col min-h-0">
               {activeConversation && activeParticipant ? (
                 <>
-                 
+                
                   <div 
                     className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/30 min-h-0"
-                    style={{ maxHeight: '68vh' }}
+                    style={{ maxHeight: '70vh' }}
                   >
                     {messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full">
