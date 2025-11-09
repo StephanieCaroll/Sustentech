@@ -89,6 +89,80 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
     };
   }, [isOpen]);
 
+  const isBudgetMessage = (content: string) => {
+    return content.includes('SOLICITAÇÃO DE ORÇAMENTO');
+  };
+
+  const formatBudgetMessage = (content: string) => {
+    const lines = content.split('\n');
+    return (
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4 max-w-md">
+        {lines.map((line, index) => {
+          if (line.includes('SOLICITAÇÃO DE ORÇAMENTO')) {
+            return (
+              <div key={index} className="text-center font-bold text-green-700 text-lg mb-3">
+                💰 SOLICITAÇÃO DE ORÇAMENTO
+              </div>
+            );
+          }
+          if (line.includes('*Detalhes do Serviço:*')) {
+            return (
+              <div key={index} className="font-semibold text-green-600 mb-2">
+                📋 Detalhes do Serviço:
+              </div>
+            );
+          }
+          if (line.includes('*Valores:*')) {
+            return (
+              <div key={index} className="font-semibold text-green-600 mb-2 mt-3">
+                💵 Valores:
+              </div>
+            );
+          }
+          if (line.includes('*Observações:*')) {
+            return (
+              <div key={index} className="font-semibold text-green-600 mb-2 mt-3">
+                📝 Observações:
+              </div>
+            );
+          }
+          if (line.startsWith('•')) {
+            const cleanLine = line.replace('•', '').trim();
+            const parts = cleanLine.split(':');
+            if (parts.length === 2) {
+              return (
+                <div key={index} className="text-sm text-gray-700 mb-1 flex">
+                  <span className="font-medium min-w-20">{parts[0].trim()}:</span>
+                  <span className="ml-2 flex-1">{parts[1].trim()}</span>
+                </div>
+              );
+            }
+            return (
+              <div key={index} className="text-sm text-gray-700 ml-2 mb-1">
+                {line.replace('•', '◦')}
+              </div>
+            );
+          }
+          if (line.startsWith('_')) {
+            return (
+              <div key={index} className="text-xs text-gray-500 italic mt-3 text-center">
+                {line.replace(/_/g, '')}
+              </div>
+            );
+          }
+          if (line.trim() === '') {
+            return <br key={index} />;
+          }
+          return (
+            <div key={index} className="text-sm">
+              {line}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const ensureUserProfile = async (userId: string): Promise<boolean> => {
     try {
       const { data: existingProfile, error: checkError } = await supabase
@@ -755,7 +829,11 @@ export const Messages = ({ isOpen, onClose, initialSellerId, initialItem, initia
                                 ) : null}
                                 
                                 {message.content && (
-                                  <p className="text-sm">{message.content}</p>
+                                  isBudgetMessage(message.content) ? (
+                                    formatBudgetMessage(message.content)
+                                  ) : (
+                                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                                  )
                                 )}
                                 
                                 <p className={`text-xs mt-1 ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"} whitespace-nowrap`}>

@@ -14,6 +14,8 @@ import {
   Plus,
   X,
   Save,
+  FileText,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +100,14 @@ interface ServiceEditForm {
   state: string;
 }
 
+interface BudgetData {
+  serviceDetails: string;
+  quantity: number;
+  duration: number;
+  frequency: string;
+  additionalNotes: string;
+}
+
 const ServiceCard = ({
   service,
   onStartConversation,
@@ -132,6 +142,14 @@ const ServiceCard = ({
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [hasUserRated, setHasUserRated] = useState(false);
   const [userReviewId, setUserReviewId] = useState<string | null>(null);
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [budgetData, setBudgetData] = useState<BudgetData>({
+    serviceDetails: "",
+    quantity: 1,
+    duration: 1,
+    frequency: "único",
+    additionalNotes: ""
+  });
 
   const cardRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -162,239 +180,238 @@ const ServiceCard = ({
   const MAX_IMAGES = 5;
 
   const fetchServiceReviews = async (serviceId: string) => {
-  if (!serviceId) return;
-  
-  setLoadingReviews(true);
-  try {
-    console.log("🔄 Buscando avaliações para o serviço:", serviceId);
-  
-    const { data: reviewsData, error } = await supabase
-      .from("service_reviews")
-      .select(`
-        id, 
-        rating, 
-        comment, 
-        created_at, 
-        user_id
-      `)
-      .eq("service_id", serviceId)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (error) {
-      console.error("❌ Erro ao buscar avaliações:", error);
-      if (error.code === '42P01' || error.code === 'PGRST116') {
-        console.warn("Tabela service_reviews não encontrada");
-        setReviews([]);
-        setAverageRating(0);
-        setTotalReviews(0);
-        setHasUserRated(false);
-        setUserReviewId(null);
-        return;
-      }
-      throw error;
-    }
-
-    console.log("📊 Avaliações encontradas:", reviewsData);
-
-    if (reviewsData && reviewsData.length > 0) {
-      const userIds = reviewsData.map(review => review.user_id);
-      console.log("🆔 IDs para buscar perfis:", userIds);
-      
-      const { data: allProfiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("user_id, name, avatar_url")
-        .in("user_id", userIds);
-
-      console.log("📋 Perfis encontrados:", allProfiles);
-      console.log("❌ Erro perfis:", profilesError);
-
-      const reviewsWithProfiles = reviewsData.map((review) => {
-      
-        const userProfile = allProfiles?.find(profile => profile.user_id === review.user_id);
-        console.log(`🔍 Buscando perfil para user_id ${review.user_id}:`, userProfile);
-        
-        if (userProfile) {
-          console.log(`✅ Perfil encontrado: ${userProfile.name}`);
-          return {
-            ...review,
-            profiles: {
-              name: userProfile.name || "Sem nome",
-              avatar_url: userProfile.avatar_url || ""
-            }
-          };
-        } else {
-          console.log(`❌ Perfil NÃO encontrado para user_id: ${review.user_id}`);
-          return {
-            ...review,
-            profiles: {
-              name: "Usuário Anônimo",
-              avatar_url: ""
-            }
-          };
-        }
-      });
-
-      console.log("🎯 Avaliações FINAIS com perfis:", reviewsWithProfiles);
-      setReviews(reviewsWithProfiles as ServiceReview[]);
-      
-      if (user) {
-        const userReview = reviewsData.find(review => review.user_id === user.id);
-        console.log("🔍 Avaliação do usuário atual:", userReview);
-        setHasUserRated(!!userReview);
-        if (userReview) {
-          setUserRating(userReview.rating);
-          setRatingComment(userReview.comment || "");
-          setUserReviewId(userReview.id);
-        } else {
-          setUserRating(0);
-          setRatingComment("");
-          setUserReviewId(null);
-        }
-      }
-      
-      const totalRating = reviewsData.reduce((sum, review) => sum + review.rating, 0);
-      const averageRating = totalRating / reviewsData.length;
-      setAverageRating(Math.round(averageRating * 10) / 10);
-      setTotalReviews(reviewsData.length);
-      
-    } else {
-      console.log("📭 Nenhuma avaliação encontrada");
-      setReviews([]);
-      setAverageRating(0);
-      setTotalReviews(0);
-      setHasUserRated(false);
-      setUserReviewId(null);
-    }
-  } catch (error) {
-    console.error("💥 Erro ao buscar avaliações do serviço:", error);
-    setReviews([]);
-    setAverageRating(0);
-    setTotalReviews(0);
-    setHasUserRated(false);
-    setUserReviewId(null);
-  } finally {
-    setLoadingReviews(false);
-  }
-};
-
-const checkFavoriteStatus = async () => {
-  if (!user || !internalService) {
-    setIsFavorite(false);
-    return;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("favorites")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("service_id", internalService.id) 
-      .maybeSingle();
-
-    if (error) {
-      console.error("Erro ao verificar favorito:", error);
-      setIsFavorite(false);
-      return;
-    }
-
-    setIsFavorite(!!data);
-  } catch (error) {
-    console.error("Erro ao verificar favorito:", error);
-    setIsFavorite(false);
-  }
-};
-
-const toggleFavorite = async (e: React.MouseEvent) => {
-  e.stopPropagation();
-  
-  if (!user) {
-    toast({
-      title: "Atenção",
-      description: "Você precisa estar logado para favoritar serviços",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  if (isOwner) {
-    toast({
-      title: "Atenção",
-      description: "Você não pode favoritar seu próprio serviço",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  setLoadingFavorite(true);
-  try {
-    if (isFavorite) {
-      
-      const { error } = await supabase
-        .from("favorites") 
-        .delete()
-        .eq("user_id", user.id)
-        .eq("service_id", internalService.id); 
-
-      if (error) throw error;
-
-      setIsFavorite(false);
-      toast({
-        title: "Removido dos favoritos",
-        description: "Serviço removido dos seus favoritos",
-      });
-    } else {
-      
-      const { error } = await supabase
-        .from("favorites") 
-        .insert({
-          user_id: user.id,
-          service_id: internalService.id, 
-          created_at: new Date().toISOString(),
-        });
+    if (!serviceId) return;
+    
+    setLoadingReviews(true);
+    try {
+      console.log("🔄 Buscando avaliações para o serviço:", serviceId);
+    
+      const { data: reviewsData, error } = await supabase
+        .from("service_reviews")
+        .select(`
+          id, 
+          rating, 
+          comment, 
+          created_at, 
+          user_id
+        `)
+        .eq("service_id", serviceId)
+        .order("created_at", { ascending: false })
+        .limit(5);
 
       if (error) {
-
-        if (error.code === '23505') {
-          setIsFavorite(true);
-          toast({
-            title: "Adicionado aos favoritos",
-            description: "Serviço já estava nos seus favoritos",
-          });
+        console.error("❌ Erro ao buscar avaliações:", error);
+        if (error.code === '42P01' || error.code === 'PGRST116') {
+          console.warn("Tabela service_reviews não encontrada");
+          setReviews([]);
+          setAverageRating(0);
+          setTotalReviews(0);
+          setHasUserRated(false);
+          setUserReviewId(null);
           return;
         }
         throw error;
       }
 
-      setIsFavorite(true);
-      toast({
-        title: "Adicionado aos favoritos",
-        description: "Serviço adicionado aos seus favoritos",
-      });
+      console.log("📊 Avaliações encontradas:", reviewsData);
+
+      if (reviewsData && reviewsData.length > 0) {
+        const userIds = reviewsData.map(review => review.user_id);
+        console.log("🆔 IDs para buscar perfis:", userIds);
+        
+        const { data: allProfiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("user_id, name, avatar_url")
+          .in("user_id", userIds);
+
+        console.log("📋 Perfis encontrados:", allProfiles);
+        console.log("❌ Erro perfis:", profilesError);
+
+        const reviewsWithProfiles = reviewsData.map((review) => {
+        
+          const userProfile = allProfiles?.find(profile => profile.user_id === review.user_id);
+          console.log(`🔍 Buscando perfil para user_id ${review.user_id}:`, userProfile);
+          
+          if (userProfile) {
+            console.log(`✅ Perfil encontrado: ${userProfile.name}`);
+            return {
+              ...review,
+              profiles: {
+                name: userProfile.name || "Sem nome",
+                avatar_url: userProfile.avatar_url || ""
+              }
+            };
+          } else {
+            console.log(`❌ Perfil NÃO encontrado para user_id: ${review.user_id}`);
+            return {
+              ...review,
+              profiles: {
+                name: "Usuário Anônimo",
+                avatar_url: ""
+              }
+            };
+          }
+        });
+
+        console.log("🎯 Avaliações FINAIS com perfis:", reviewsWithProfiles);
+        setReviews(reviewsWithProfiles as ServiceReview[]);
+        
+        if (user) {
+          const userReview = reviewsData.find(review => review.user_id === user.id);
+          console.log("🔍 Avaliação do usuário atual:", userReview);
+          setHasUserRated(!!userReview);
+          if (userReview) {
+            setUserRating(userReview.rating);
+            setRatingComment(userReview.comment || "");
+            setUserReviewId(userReview.id);
+          } else {
+            setUserRating(0);
+            setRatingComment("");
+            setUserReviewId(null);
+          }
+        }
+        
+        const totalRating = reviewsData.reduce((sum, review) => sum + review.rating, 0);
+        const averageRating = totalRating / reviewsData.length;
+        setAverageRating(Math.round(averageRating * 10) / 10);
+        setTotalReviews(reviewsData.length);
+        
+      } else {
+        console.log("📭 Nenhuma avaliação encontrada");
+        setReviews([]);
+        setAverageRating(0);
+        setTotalReviews(0);
+        setHasUserRated(false);
+        setUserReviewId(null);
+      }
+    } catch (error) {
+      console.error("💥 Erro ao buscar avaliações do serviço:", error);
+      setReviews([]);
+      setAverageRating(0);
+      setTotalReviews(0);
+      setHasUserRated(false);
+      setUserReviewId(null);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  const checkFavoriteStatus = async () => {
+    if (!user || !internalService) {
+      setIsFavorite(false);
+      return;
     }
 
-    if (onFavoriteUpdate) {
-      onFavoriteUpdate();
+    try {
+      const { data, error } = await supabase
+        .from("favorites")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("service_id", internalService.id) 
+        .maybeSingle();
+
+      if (error) {
+        console.error("Erro ao verificar favorito:", error);
+        setIsFavorite(false);
+        return;
+      }
+
+      setIsFavorite(!!data);
+    } catch (error) {
+      console.error("Erro ao verificar favorito:", error);
+      setIsFavorite(false);
     }
-  } catch (error: any) {
-    console.error("Erro ao atualizar favoritos:", error);
+  };
+
+  const toggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     
-    let errorMessage = "Não foi possível atualizar os favoritos";
-    if (error?.code === '23505') {
-      errorMessage = "Este serviço já está nos seus favoritos";
+    if (!user) {
+      toast({
+        title: "Atenção",
+        description: "Você precisa estar logado para favoritar serviços",
+        variant: "destructive",
+      });
+      return;
     }
 
-    toast({
-      title: "Erro",
-      description: errorMessage,
-      variant: "destructive",
-    });
-  } finally {
-    setLoadingFavorite(false);
-  }
-};
+    if (isOwner) {
+      toast({
+        title: "Atenção",
+        description: "Você não pode favoritar seu próprio serviço",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  
+    setLoadingFavorite(true);
+    try {
+      if (isFavorite) {
+        
+        const { error } = await supabase
+          .from("favorites") 
+          .delete()
+          .eq("user_id", user.id)
+          .eq("service_id", internalService.id); 
+
+        if (error) throw error;
+
+        setIsFavorite(false);
+        toast({
+          title: "Removido dos favoritos",
+          description: "Serviço removido dos seus favoritos",
+        });
+      } else {
+        
+        const { error } = await supabase
+          .from("favorites") 
+          .insert({
+            user_id: user.id,
+            service_id: internalService.id, 
+            created_at: new Date().toISOString(),
+          });
+
+        if (error) {
+
+          if (error.code === '23505') {
+            setIsFavorite(true);
+            toast({
+              title: "Adicionado aos favoritos",
+              description: "Serviço já estava nos seus favoritos",
+            });
+            return;
+          }
+          throw error;
+        }
+
+        setIsFavorite(true);
+        toast({
+          title: "Adicionado aos favoritos",
+          description: "Serviço adicionado aos seus favoritos",
+        });
+      }
+
+      if (onFavoriteUpdate) {
+        onFavoriteUpdate();
+      }
+    } catch (error: any) {
+      console.error("Erro ao atualizar favoritos:", error);
+      
+      let errorMessage = "Não foi possível atualizar os favoritos";
+      if (error?.code === '23505') {
+        errorMessage = "Este serviço já está nos seus favoritos";
+      }
+
+      toast({
+        title: "Erro",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingFavorite(false);
+    }
+  };
+
   const renderStars = (rating: number, size: 'sm' | 'md' | 'lg' = 'md') => {
     const sizeClasses = {
       sm: 'h-3 w-3',
@@ -556,45 +573,182 @@ const toggleFavorite = async (e: React.MouseEvent) => {
     }
   };
 
-useEffect(() => {
-  const checkTablesExistence = async () => {
-    if (!user || !internalService) return;
+  const handleBudgetRequest = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!user) {
+      toast({
+        title: "Atenção",
+        description: "Você precisa estar logado para solicitar orçamento",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
 
+    if (isOwner) {
+      toast({
+        title: "Atenção",
+        description: "Você não pode solicitar orçamento do seu próprio serviço",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setShowBudgetModal(true);
+  };
+
+  const formatBudgetMessage = (budget: BudgetData, service: ExtendedService) => {
+    const totalPrice = service.price_per_hour ? service.price_per_hour * budget.duration * budget.quantity : 0;
+    
+    return `💰 *SOLICITAÇÃO DE ORÇAMENTO*
+
+📋 *Detalhes do Serviço:*
+• *Serviço:* ${service.name}
+• *Descrição:* ${budget.serviceDetails || "Não especificada"}
+• *Quantidade:* ${budget.quantity} unidade(s)
+• *Duração:* ${budget.duration} hora(s) por sessão
+• *Frequência:* ${budget.frequency}
+
+💵 *Valores:*
+• Preço por hora: R$ ${service.price_per_hour?.toFixed(2) || "0,00"}
+• Total estimado: R$ ${totalPrice.toFixed(2)}
+
+📝 *Observações:*
+${budget.additionalNotes || "Nenhuma observação adicional"}
+
+_*Este é um orçamento estimado. Valores finais podem variar.*_`;
+  };
+
+  const createConversation = async (sellerId: string) => {
+    if (!user) return null;
+    
     try {
-     
-      const { error: favoritesError } = await supabase
-        .from('favorites') 
-        .select('id')
-        .limit(1);
+      const { data: existingConversations, error: checkError } = await supabase
+        .from('conversations')
+        .select('id, participant1, participant2')
+        .or(`participant1.eq.${user.id},participant2.eq.${user.id}`);
 
-      if (favoritesError) {
-        console.error('Erro ao acessar tabela favorites:', favoritesError);
-       
-        setIsFavorite(false);
+      if (checkError) throw checkError;
+
+      const existingConversation = existingConversations?.find(conv => 
+        (conv.participant1 === user.id && conv.participant2 === sellerId) ||
+        (conv.participant1 === sellerId && conv.participant2 === user.id)
+      );
+
+      if (existingConversation) {
+        return existingConversation.id;
       }
+
+      const { data: newConversation, error: createError } = await supabase
+        .from('conversations')
+        .insert({
+          participant1: user.id,
+          participant2: sellerId,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+      
+      return newConversation.id;
     } catch (error) {
-      console.warn('Erro ao verificar tabela favorites:', error);
+      console.error('Erro ao criar conversa:', error);
+      return null;
     }
   };
 
-  checkTablesExistence();
-}, [user, internalService]);
+  const sendBudgetToChat = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!user) return;
+
+    try {
+      const conversationId = await createConversation(internalService.user_id);
+      
+      if (!conversationId) {
+        throw new Error("Não foi possível criar a conversa");
+      }
+
+      const budgetMessage = formatBudgetMessage(budgetData, internalService);
+      
+      if (onStartConversation) {
+        onStartConversation(
+          internalService.user_id,
+          internalService,
+          budgetMessage
+        );
+      } else {
+        setSelectedSellerId(internalService.user_id);
+        setSelectedService(internalService);
+        setInitialMessage(budgetMessage);
+        setIsMessagesOpen(true);
+      }
+
+      setShowBudgetModal(false);
+      setBudgetData({
+        serviceDetails: "",
+        quantity: 1,
+        duration: 1,
+        frequency: "único",
+        additionalNotes: ""
+      });
+      
+      toast({
+        title: "Sucesso",
+        description: "Orçamento enviado para o vendedor!",
+      });
+
+    } catch (error) {
+      console.error("Erro ao enviar orçamento:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível enviar o orçamento",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    const checkTablesExistence = async () => {
+      if (!user || !internalService) return;
+
+      try {
+      
+        const { error: favoritesError } = await supabase
+          .from('favorites') 
+          .select('id')
+          .limit(1);
+
+        if (favoritesError) {
+          console.error('Erro ao acessar tabela favorites:', favoritesError);
+        
+          setIsFavorite(false);
+        }
+      } catch (error) {
+        console.warn('Erro ao verificar tabela favorites:', error);
+      }
+    };
+
+    checkTablesExistence();
+  }, [user, internalService]);
 
   useEffect(() => {
     setInternalService(service);
   }, [service]);
 
- useEffect(() => {
-  if (internalService) {
-    fetchServiceReviews(internalService.id);
-  }
-}, [internalService]);
+  useEffect(() => {
+    if (internalService) {
+      fetchServiceReviews(internalService.id);
+    }
+  }, [internalService]);
 
-useEffect(() => {
-  if (internalService) {
-    fetchServiceReviews(internalService.id);
-  }
-}, []);
+  useEffect(() => {
+    if (internalService) {
+      fetchServiceReviews(internalService.id);
+    }
+  }, []);
 
   useEffect(() => {
    
@@ -1069,7 +1223,7 @@ useEffect(() => {
     }
 
     if (contactType === "budget") {
-      navigate(`/servicos/${internalService.id}/orcamento`);
+      handleBudgetRequest(e);
       return;
     }
 
@@ -1852,8 +2006,9 @@ useEffect(() => {
                       <Button
                         variant="outline"
                         className="flex-1 py-3"
-                        onClick={(e) => handleContact(e, "budget")}
+                        onClick={handleBudgetRequest}
                       >
+                        <FileText className="h-5 w-5 mr-2" />
                         Solicitar Orçamento
                       </Button>
                     </div>
@@ -1934,6 +2089,128 @@ useEffect(() => {
               </Button>
               <Button variant="destructive" onClick={confirmDelete}>
                 Excluir
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal de Orçamento */}
+        <Dialog open={showBudgetModal} onOpenChange={setShowBudgetModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Solicitar Orçamento</DialogTitle>
+              <DialogDescription>
+                Preencha os detalhes do serviço que você precisa
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Detalhes do Serviço Necessário
+                </label>
+                <Textarea
+                  placeholder="Descreva exatamente o que você precisa..."
+                  value={budgetData.serviceDetails}
+                  onChange={(e) => setBudgetData(prev => ({
+                    ...prev,
+                    serviceDetails: e.target.value
+                  }))}
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Quantidade
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={budgetData.quantity}
+                    onChange={(e) => setBudgetData(prev => ({
+                      ...prev,
+                      quantity: parseInt(e.target.value) || 1
+                    }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Duração (horas)
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={budgetData.duration}
+                    onChange={(e) => setBudgetData(prev => ({
+                      ...prev,
+                      duration: parseInt(e.target.value) || 1
+                    }))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Frequência
+                </label>
+                <Select
+                  value={budgetData.frequency}
+                  onValueChange={(value) => setBudgetData(prev => ({
+                    ...prev,
+                    frequency: value
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="único">Serviço Único</SelectItem>
+                    <SelectItem value="semanal">Semanal</SelectItem>
+                    <SelectItem value="quinzenal">Quinzenal</SelectItem>
+                    <SelectItem value="mensal">Mensal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Observações Adicionais
+                </label>
+                <Textarea
+                  placeholder="Alguma informação adicional importante..."
+                  value={budgetData.additionalNotes}
+                  onChange={(e) => setBudgetData(prev => ({
+                    ...prev,
+                    additionalNotes: e.target.value
+                  }))}
+                  rows={2}
+                />
+              </div>
+
+              {/* Preview do Orçamento */}
+              <div className="bg-muted/30 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Prévia do Orçamento:</h4>
+                <div className="text-sm space-y-1">
+                  <p><strong>Serviço:</strong> {internalService.name}</p>
+                  <p><strong>Total Estimado:</strong> R$ {(
+                    (internalService.price_per_hour || 0) * 
+                    budgetData.duration * 
+                    budgetData.quantity
+                  ).toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowBudgetModal(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={sendBudgetToChat}>
+                <Send className="h-4 w-4 mr-2" />
+                Enviar Orçamento
               </Button>
             </DialogFooter>
           </DialogContent>
