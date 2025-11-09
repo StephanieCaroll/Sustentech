@@ -43,7 +43,6 @@ import {
 } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 
-// Interface para as avaliações de serviços
 interface ServiceReview {
   id: string;
   rating: number;
@@ -1806,10 +1805,19 @@ useEffect(() => {
                     )}
                   </div>
 
+                  {/* SEÇÃO MODIFICADA - Sobre o Prestador com navegação */}
                   <div className="border-t pt-4">
                     <h4 className="font-medium mb-2">Sobre o Prestador</h4>
-                    <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-md">
-                      <Avatar className="h-14 w-14">
+                    <div
+                      className="flex items-center gap-3 p-3 bg-muted/30 rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (internalService.user_id) {
+                          navigate(`/user/${internalService.user_id}`);
+                        }
+                      }}
+                    >
+                      <Avatar className="h-14 w-14 shrink-0">
                         <AvatarImage
                           src={internalService.profiles?.avatar_url}
                           alt={internalService.profiles?.name}
@@ -1846,7 +1854,7 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  {/* Seção de avaliações do serviço - CORRIGIDA */}
+                  {/* Seção de avaliações do serviço */}
                   <ReviewsSection />
 
                   {!isOwner && (

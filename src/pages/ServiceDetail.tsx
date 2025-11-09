@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
     ArrowLeft,
-    Wrench,
     Heart,
     MapPin,
     Star,
@@ -39,6 +38,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Messages } from "@/components/Message"; 
 
 type ServiceWithProfile = Service & {
     profiles: any | null;
@@ -160,6 +160,7 @@ export default function ServiceDetail() {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
     const [editForm, setEditForm] = useState({
         name: "", 
@@ -216,6 +217,42 @@ export default function ServiceDetail() {
         const validUrls = urls.filter((url) => url !== "");
         setImageUrls(validUrls.length > 0 ? validUrls : [getDefaultImage()]);
     };
+
+    const handleContactService = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        
+        if (!user) {
+            toast({
+                title: "Atenção",
+                description: "Você precisa estar logado para entrar em contato",
+                variant: "destructive",
+            });
+            return;
+        }
+        
+        if (!service) {
+            toast({
+                title: "Erro",
+                description: "Serviço não encontrado",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const isOwner = user.id === service.user_id;
+        if (isOwner) {
+            toast({
+                title: "Atenção",
+                description: "Você não pode entrar em contato com seu próprio serviço",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Abre o modal de chat em vez de navegar para uma rota
+        setIsChatOpen(true);
+    };
+
     useEffect(() => {
         async function fetchInitialData() {
             if (!id) return;
@@ -454,15 +491,6 @@ export default function ServiceDetail() {
         }
     };
 
-    const handleRequestBudget = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!user || !service) {
-            toast({ title: "Atenção", description: "Você precisa estar logado.", variant: "destructive" });
-            return;
-        }
-        navigate(`/servicos/${service.id}/orcamento`);
-    };
-
     const handleEditChange = (
         e: React.ChangeEvent<
             HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -628,8 +656,6 @@ export default function ServiceDetail() {
     const hasMultipleImages = currentImageUrls.length > 1;
 
 
-    // --- RENDERIZAÇÃO ---
-
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-screen">
@@ -651,16 +677,15 @@ export default function ServiceDetail() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background">
-            <div className="container mx-auto max-w-5xl py-8 px-4 space-y-6">
+            <div className="container mx-auto max-w-5xl px-4 space-y-6">
 
-                {/* Botões de Ação no Topo */}
+               
                 <div className="flex justify-between items-center mb-4">
                     <Button variant="ghost" onClick={() => navigate(-1)}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Voltar
                     </Button>
 
-                    {/* Botão de Lixo no Topo */}
                     {isOwner && (
                         <Button variant="destructive" size="icon" onClick={handleDelete} className="ml-auto" disabled={isEditing}>
                             <Trash2 className="h-4 w-4" />
@@ -835,10 +860,10 @@ export default function ServiceDetail() {
                                     <Button
                                         size="lg"
                                         className="w-full bg-gradient-to-r from-primary to-primary-glow py-6 text-lg"
-                                        onClick={handleRequestBudget}
+                                        onClick={handleContactService}
                                     >
                                         <MessageCircle className="mr-2 h-5 w-5" />
-                                        Solicitar Orçamento
+                                        Entrar em Contato
                                     </Button>
                                 )}
 
@@ -968,7 +993,6 @@ export default function ServiceDetail() {
                             )}
                         </div>
 
-                        {/* Botões de Edição para o Dono */}
                         {isOwner && (
                             <div className="flex justify-end gap-2 mt-6">
                                 {!isEditing ? (
@@ -991,7 +1015,6 @@ export default function ServiceDetail() {
                 </div>
             </div>
 
-            {/* Modal de Confirmação de Exclusão */}
             <Dialog open={isDeleting} onOpenChange={setIsDeleting}>
                 <DialogContent>
                     <DialogHeader>
@@ -1012,6 +1035,14 @@ export default function ServiceDetail() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <Messages 
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+                initialSellerId={service?.user_id}
+                initialItem={service}
+                initialMessage={`Olá! Gostaria de mais informações sobre o serviço: "${serviceAsAny?.name}".`}
+            />
         </div>
     );
 }

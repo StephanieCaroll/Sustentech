@@ -32,6 +32,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { Messages } from "@/components/Message"; 
 
 type ItemWithProfile = Item & {
     profiles: any | null;
@@ -64,6 +65,7 @@ const renderStars = (rating: number) => {
         </div>
     );
 };
+
 const formatPrice = (price?: number) => {
     if (!price || price === 0) return "Gratuito";
     return new Intl.NumberFormat("pt-BR", {
@@ -71,6 +73,7 @@ const formatPrice = (price?: number) => {
         currency: "BRL",
     }).format(price);
 };
+
 const formatCondition = (condition: string) => {
     const conditions: Record<string, string> = {
         novo: "Novo",
@@ -207,6 +210,7 @@ export default function ItemDetail() {
     const [isSaving, setIsSaving] = useState(false);
     const [isUploading, setIsUploading] = useState(false); 
     const [isDeleting, setIsDeleting] = useState(false); 
+    const [isChatOpen, setIsChatOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null); 
     
     const [editForm, setEditForm] = useState({
@@ -264,6 +268,39 @@ export default function ItemDetail() {
         setImageUrls(validUrls.length > 0 ? validUrls : [getDefaultImage()]);
     };
 
+    const handleBuyNow = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        
+        if (!user) {
+            toast({
+                title: "Atenção",
+                description: "Você precisa estar logado para comprar itens",
+                variant: "destructive",
+            });
+            return;
+        }
+        
+        if (!item) {
+            toast({
+                title: "Erro",
+                description: "Item não encontrado",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const isOwner = user.id === item.user_id;
+        if (isOwner) {
+            toast({
+                title: "Atenção",
+                description: "Você não pode comprar seu próprio item",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setIsChatOpen(true);
+    };
 
     useEffect(() => {
         async function fetchItem() {
@@ -326,7 +363,6 @@ export default function ItemDetail() {
                 });
             }
 
-
             setLoading(false);
         }
 
@@ -367,7 +403,6 @@ export default function ItemDetail() {
     const goToImage = (index: number) => {
         setCurrentImageIndex(index);
     };
-
 
     const handleEditChange = (
         e: React.ChangeEvent<
@@ -511,18 +546,6 @@ export default function ItemDetail() {
         }
     };
 
-    const handleBuyNow = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!user || !item) {
-            toast({ title: "Atenção", description: "Você precisa estar logado.", variant: "destructive" });
-            return;
-        }
-        toast({
-            title: "Iniciando conversa...",
-            description: "Redirecionando para o chat com o vendedor.",
-        });
-    };
-    
     const handleAddImageClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (imageUrls.filter(url => url !== getDefaultImage()).length >= 4) {
@@ -635,7 +658,7 @@ export default function ItemDetail() {
             if (dbError) throw dbError;
     
             toast({ title: "Sucesso", description: "Item excluído e liberado do seu perfil." });
-            navigate("/profile"); // Redireciona para o perfil após excluir
+            navigate("/profile"); 
     
         } catch (error) {
             console.error("Erro fatal ao excluir item:", error);
@@ -648,7 +671,6 @@ export default function ItemDetail() {
     const currentImage = imageUrls[currentImageIndex] || getDefaultImage();
     const isPlaceholder = currentImage === getDefaultImage();
     const currentImageUrls = imageUrls.filter(url => url !== getDefaultImage());
-
 
     if (loading) {
         return (
@@ -672,14 +694,13 @@ export default function ItemDetail() {
         <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background">
             <div className="container mx-auto max-w-5xl py-8 px-4 space-y-6">
                 
-                {/* Botões de Ação no Topo */}
+               
                 <div className="flex justify-between items-center mb-4">
                     <Button variant="ghost" onClick={() => navigate(-1)}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Voltar
                     </Button>
                     
-                    {/* Botão de Lixo no Topo */}
                     {isOwner && (
                         <Button variant="destructive" size="icon" onClick={handleDelete} className="ml-auto" disabled={isEditing}>
                             <Trash2 className="h-4 w-4" />
@@ -690,10 +711,9 @@ export default function ItemDetail() {
                 <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-primary/10">
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Coluna da Esquerda: Galeria de Imagens (com pré-visualização de edição) */}
+         
                         <div className="space-y-4">
                             
-                            {/* Bloco da Imagem Principal */}
                             <div className="aspect-square w-full bg-muted rounded-2xl overflow-hidden relative">
                                 
                                 <img
@@ -702,7 +722,6 @@ export default function ItemDetail() {
                                     className={`w-full h-full object-cover ${isPlaceholder ? 'p-10 object-contain' : ''}`}
                                 />
                                 
-                                {/* Botões de Navegação (Se houver mais de uma imagem e não estiver editando) */}
                                 {!isPlaceholder && currentImageUrls.length > 1 && !isEditing && (
                                     <>
                                         <Button size="icon" variant="ghost" className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/50 backdrop-blur hover:bg-background/80" onClick={prevImage} >
@@ -715,7 +734,6 @@ export default function ItemDetail() {
                                 )}
                             </div>
                             
-                            {/* Bloco de Miniaturas (Thumbnails) para Visualização ou Edição */}
                             {isOwner && isEditing ? (
                                 <div className="space-y-2">
                                     <h4 className="font-semibold text-sm text-primary">Gerenciar Imagens ({currentImageUrls.length}/4)</h4>
@@ -756,7 +774,7 @@ export default function ItemDetail() {
                                     </div>
                                 </div>
                             ) : (
-                                // Miniaturas de visualização normal
+                               
                                 currentImageUrls.length > 1 && (
                                     <div className="grid grid-cols-4 gap-2">
                                         {currentImageUrls.map((url, index) => (
@@ -781,11 +799,9 @@ export default function ItemDetail() {
                             )}
                         </div>
 
-                        {/* Coluna da Direita: Informações */}
                         <div className="space-y-6">
                             <div className="flex justify-between items-start gap-4">
                                 
-                                {/* Título */}
                                 {isEditing ? (
                                     <Input
                                         name="title"
@@ -800,7 +816,6 @@ export default function ItemDetail() {
                                     </h1>
                                 )}
 
-                                {/* Botão de Favorito */}
                                 {!isEditing && (
                                     <Button
                                         size="icon"
@@ -817,7 +832,7 @@ export default function ItemDetail() {
                             </div>
 
                             <div className="space-y-4">
-                                {/* Preço */}
+                               
                                 {isEditing ? (
                                     <div>
                                         <label className="text-xs text-muted-foreground">Preço (R$)</label>
@@ -1010,6 +1025,15 @@ export default function ItemDetail() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Modal de Chat */}
+            <Messages 
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+                initialSellerId={item?.user_id}
+                initialItem={item}
+                initialMessage={`Olá! Tenho interesse no item "${item?.title}".`}
+            />
         </div>
     );
 }

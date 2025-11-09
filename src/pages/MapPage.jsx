@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
-import { MapPin, ArrowLeft, Loader2, X } from "lucide-react";
+import { MapPin, ArrowLeft, Loader2, X, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -84,6 +84,7 @@ const MapPage = () => {
   const [points, setPoints] = useState([]);
   const [modalData, setModalData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [itemDetails, setItemDetails] = useState(null);
 
   const getFullAddress = useCallback((data) => {
     const parts = [
@@ -96,6 +97,78 @@ const MapPage = () => {
     ].filter(Boolean);
     return parts.join(", ");
   }, []);
+
+  const fetchItemDetails = async (point) => {
+    try {
+      console.log("Buscando detalhes para:", point);
+      
+      if (point.type === "ITEM") {
+        const { data, error } = await supabase
+          .from("items")
+          .select("*")
+          .eq("id", point.id)
+          .single();
+        
+        console.log("Dados do item:", data, "Erro:", error);
+        
+        if (!error && data) {
+          setItemDetails({
+            ...data,
+            images: data.image_urls ? data.image_urls.map(url => ({ url })) : []
+          });
+        }
+      } else if (point.type === "SERVICE") {
+        const { data, error } = await supabase
+          .from("services")
+          .select("*")
+          .eq("id", point.id)
+          .single();
+        
+        console.log("Dados do serviço:", data, "Erro:", error);
+        
+        if (!error && data) {
+          setItemDetails({
+            ...data,
+            images: data.images ? data.images.map(url => ({ url })) : [],
+            price: data.price_per_hour
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao buscar detalhes:", error);
+    }
+  };
+
+  const handleMarkerClick = async (point) => {
+    setModalData(point);
+    setItemDetails(null);
+    await fetchItemDetails(point);
+  };
+
+  const handleCloseModal = () => {
+    setModalData(null);
+    setItemDetails(null);
+  };
+
+  const handleGoToAd = () => {
+    if (modalData?.type === "ITEM") {
+     
+      navigate(`/item/${modalData.id}`);
+    } else if (modalData?.type === "SERVICE") {
+    
+      navigate(`/service/${modalData.id}`);
+    }
+    handleCloseModal();
+  };
+
+  const formatPrice = (price) => {
+  if (price === null || price === undefined) return "Preço não informado";
+  if (price === 0) return "Gratuito";
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(price);
+};
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -159,82 +232,164 @@ const MapPage = () => {
 
   if (loading || !userLocation)
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-white">
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-white">
         <Loader2 className="animate-spin text-green-500 h-12 w-12" />
         <p className="mt-3 text-lg font-semibold">Carregando mapa e localizações...</p>
       </div>
     );
 
   return (
-    <div className="min-h-screen w-full bg-white fixed inset-0 overflow-hidden flex flex-col items-center">
-      <div className="w-full flex flex-col items-center text-center px-4 py-2 mt-3 gap-2">
-        <h1 className="text-xl font-bold text-green-600 flex items-center gap-2 justify-center">
-          <MapPin className="h-6 w-6" /> Mapa de Oportunidades
-        </h1>
-        <button
-          onClick={() => navigate(-1)}
-          className="mt-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-        >
-          <ArrowLeft size={16} /> Voltar
-        </button>
+    <div className="min-h-screen w-full bg-white fixed inset-0 overflow-hidden flex flex-col">
+      {/* Header compacto */}
+      <div className="w-full bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between max-w-7xl mx-auto w-full">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-green-600" />
+            <h1 className="text-lg font-bold text-green-600">Mapa de Oportunidades</h1>
+          </div>
+          <button
+            onClick={() => navigate(-1)}
+            className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm"
+          >
+            <ArrowLeft size={14} /> Voltar
+          </button>
+        </div>
       </div>
 
-      <div className="w-full max-w-lg aspect-square rounded-xl overflow-hidden shadow-xl border border-gray-300 mt-1 relative">
-        <MapContainer
-          center={[userLocation.lat, userLocation.lng]}
-          zoom={16} 
-          scrollWheelZoom
-          className="w-full h-full relative z-0"
-        >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <div className="flex-1 w-full max-w-7xl mx-auto">
+        <div className="w-full h-full px-6">
+          <div className="w-full h-full rounded-xl overflow-hidden shadow-lg border border-gray-300 mx-auto relative">
+          
+            {modalData && (
+              <div className="absolute inset-0 bg-transparent z-[1000]" />
+            )}
+            <MapContainer
+              center={[userLocation.lat, userLocation.lng]}
+              zoom={16} 
+              scrollWheelZoom={!modalData} 
+              className="w-full h-full"
+            >
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-          <Marker
-            position={[userLocation.lat, userLocation.lng]}
-            icon={userIcon}
-          />
+              <Marker
+                position={[userLocation.lat, userLocation.lng]}
+                icon={userIcon}
+              />
 
-          {points.map((p) => (
-            <Marker
-              key={`${p.type}-${p.id}`}
-              position={[p.lat, p.lng]}
-              icon={getIconByType(p.type)}
-              eventHandlers={{
-                click: () => setModalData(p),
-              }}
-            />
-          ))}
-        </MapContainer>
+              {points.map((p) => (
+                <Marker
+                  key={`${p.type}-${p.id}`}
+                  position={[p.lat, p.lng]}
+                  icon={getIconByType(p.type)}
+                  eventHandlers={{
+                    click: () => handleMarkerClick(p),
+                  }}
+                />
+              ))}
+            </MapContainer>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-2 flex flex-col sm:flex-row flex-wrap items-center justify-center text-center gap-2 sm:gap-6 text-sm font-medium text-gray-700 px-4">
-        <span className="flex items-center gap-1 justify-center">
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: MAP_PIN_COLORS.USER }}></div>
-          Você
-        </span>
-        <span className="flex items-center gap-1 justify-center">
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: MAP_PIN_COLORS.ITEM }}></div>
-          Itens
-        </span>
-        <span className="flex items-center gap-1 justify-center">
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: MAP_PIN_COLORS.SERVICE }}></div>
-          Serviços
-        </span>
+      <div className="w-full bg-white border-t border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-center gap-4 text-sm font-medium text-gray-700 max-w-7xl mx-auto w-full">
+          <span className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: MAP_PIN_COLORS.USER }}></div>
+            Você
+          </span>
+          <span className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: MAP_PIN_COLORS.ITEM }}></div>
+            Itens
+          </span>
+          <span className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: MAP_PIN_COLORS.SERVICE }}></div>
+            Serviços
+          </span>
+        </div>
       </div>
 
       {modalData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl relative">
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50" 
+            onClick={handleCloseModal}
+          />
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl relative max-h-[90vh] overflow-hidden z-[10000]">
+           
             <button
-              onClick={() => setModalData(null)}
-              className="absolute top-2 right-2 text-gray-600 hover:text-gray-900 font-bold"
+              onClick={handleCloseModal}
+              className="absolute top-4 right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors z-10"
             >
-              <X size={20} />
+              <X size={20} className="text-gray-600" />
             </button>
-            <h2 className="text-lg font-bold mb-2 text-gray-800">
-              {modalData.name}
-            </h2>
-            <p className="text-sm text-gray-700">{modalData.address}</p>
-            <p className="text-sm text-gray-500 mt-1">Tipo: {modalData.type === "ITEM" ? "Item" : "Serviço"}</p>
+
+            <div className="w-full h-48 bg-gray-200 relative">
+              {itemDetails?.images?.[0]?.url ? (
+                <img 
+                  src={itemDetails.images[0].url} 
+                  alt={modalData.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                  <MapPin className="h-12 w-12 text-gray-400" />
+                </div>
+              )}
+              
+              <div className="absolute top-4 left-4">
+                <span className={`px-3 py-1 rounded-full text-xs font-medium text-white ${
+                  modalData.type === "ITEM" ? "bg-orange-500" : "bg-green-500"
+                }`}>
+                  {modalData.type === "ITEM" ? "Item" : "Serviço"}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-2">
+                {modalData.name}
+              </h2>
+              
+              <p className="text-2xl font-bold text-green-600 mb-4">
+                {modalData.type === "SERVICE" ? (
+                  <>
+                    {formatPrice(itemDetails?.price)}
+                    <span className="text-sm font-normal text-gray-500 ml-1">/hora</span>
+                  </>
+                ) : (
+                  formatPrice(itemDetails?.price)
+                )}
+              </p>
+
+              {itemDetails?.description ? (
+                <div className="mb-4">
+                  <p className="text-gray-700 text-sm leading-relaxed">
+                    {itemDetails.description}
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-4">
+                  <p className="text-gray-500 text-sm italic">
+                    Descrição não disponível
+                  </p>
+                </div>
+              )}
+
+              <div className="mb-6">
+                <p className="text-sm text-gray-600 flex items-start gap-2">
+                  <MapPin size={16} className="mt-0.5 flex-shrink-0" />
+                  {modalData.address}
+                </p>
+              </div>
+
+              <button
+                onClick={handleGoToAd}
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+              >
+                <ExternalLink size={18} />
+                Ver Anúncio Completo
+              </button>
+            </div>
           </div>
         </div>
       )}
