@@ -236,11 +236,17 @@ const ItemCard = ({
     }
   }, [user, internalItem.id]);
 
-  useEffect(() => {
-    if (isExpanded && internalItem.id) {
-      fetchItemReviews(internalItem.id);
-    }
-  }, [isExpanded, internalItem.id]);
+ useEffect(() => {
+  if (internalItem.id) {
+    fetchItemReviews(internalItem.id);
+  }
+}, [internalItem.id]);
+
+useEffect(() => {
+  if (internalItem.id) {
+    fetchItemReviews(internalItem.id);
+  }
+}, []);
 
   useEffect(() => {
     if (!isExpanded && hasUnsavedChanges && isEditing) {

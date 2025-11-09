@@ -556,147 +556,6 @@ const toggleFavorite = async (e: React.MouseEvent) => {
     }
   };
 
-  const ReviewsSection = () => {
-  if (loadingReviews) {
-    return (
-      <div className="border-t pt-4">
-        <h4 className="font-medium mb-2">Avaliações do Serviço</h4>
-        <div className="flex justify-center py-4">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="border-t pt-4">
-      <div className="flex justify-between items-center mb-2">
-        <h4 className="font-medium">Avaliações do Serviço</h4>
-        {!isOwner && user && !isRating && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsRating(true)}
-          >
-            {hasUserRated ? "Editar Avaliação" : "Avaliar Serviço"}
-          </Button>
-        )}
-      </div>
-
-      {/* Formulário de Avaliação */}
-      {isRating && (
-        <div 
-          className="bg-muted/30 rounded-lg p-4 mb-4 space-y-4"
-          style={{ direction: "ltr" }}
-        >
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Sua Avaliação
-            </label>
-            {renderRatingStars(userRating, setUserRating)}
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Comentário (opcional)
-            </label>
-            <div style={{ direction: "ltr" }}>
-              <Textarea
-                value={ratingComment}
-                onChange={(e) => setRatingComment(e.target.value)}
-                placeholder="Compartilhe sua experiência com este serviço..."
-                className="min-h-[80px]"
-                style={{ 
-                  direction: "ltr", 
-                  textAlign: "left",
-                }}
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={submitRating}
-              disabled={isSubmittingRating || userRating === 0}
-              className="flex-1"
-            >
-              {isSubmittingRating ? "Enviando..." : hasUserRated ? "Atualizar Avaliação" : "Enviar Avaliação"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsRating(false);
-                if (!hasUserRated) {
-                  setUserRating(0);
-                  setRatingComment("");
-                }
-              }}
-            >
-              Cancelar
-            </Button>
-            {hasUserRated && (
-              <Button
-                variant="destructive"
-                onClick={deleteRating}
-                disabled={isSubmittingRating}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Lista de Avaliações*/}
-      {reviews.length > 0 ? (
-        <div className="space-y-4 max-h-60 overflow-y-auto">
-          {reviews.map((review) => (
-            <div key={review.id} className="flex gap-3 border-b border-gray-200 pb-3 last:border-b-0">
-              <Avatar className="h-10 w-10 shrink-0">
-                <AvatarImage 
-                  src={review.profiles?.avatar_url || ""} 
-                  alt={review.profiles?.name || "Usuário"} 
-                />
-                <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                  {review.profiles?.name?.slice(0, 2).toUpperCase() || "US"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-1">
-                  <h5 className="font-medium text-sm text-gray-800">
-                    {review.profiles?.name || "Usuário Anônimo"}
-                  </h5>
-                  <span className="text-xs text-gray-500">
-                    {new Date(review.created_at).toLocaleDateString('pt-BR')}
-                  </span>
-                </div>
-                {renderStars(review.rating, "sm")}
-                {review.comment && (
-                  <p className="text-sm text-gray-600 mt-1 break-words">
-                    {review.comment}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-4 text-muted-foreground">
-          <p className="text-sm">Este serviço ainda não recebeu avaliações.</p>
-          {!isOwner && user && !isRating && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-2"
-              onClick={() => setIsRating(true)}
-            >
-              Seja o primeiro a avaliar
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
 useEffect(() => {
   const checkTablesExistence = async () => {
     if (!user || !internalService) return;
@@ -725,12 +584,17 @@ useEffect(() => {
     setInternalService(service);
   }, [service]);
 
-  useEffect(() => {
-    if (internalService && isExpanded) {
-     
-      fetchServiceReviews(internalService.id);
-    }
-  }, [internalService, isExpanded]);
+ useEffect(() => {
+  if (internalService) {
+    fetchServiceReviews(internalService.id);
+  }
+}, [internalService]);
+
+useEffect(() => {
+  if (internalService) {
+    fetchServiceReviews(internalService.id);
+  }
+}, []);
 
   useEffect(() => {
    
@@ -1378,14 +1242,12 @@ useEffect(() => {
                   </p>
                 )}
 
-                <div className="flex items-center space-x-1 mt-1">
-                  {renderStars(averageRating, "sm")}
-                  {totalReviews > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      ({totalReviews})
-                    </span>
-                  )}
-                </div>
+               <div className="flex items-center space-x-1 mt-1">
+  {renderStars(averageRating, "sm")}
+  <span className="text-xs text-muted-foreground">
+    ({totalReviews})
+  </span>
+</div>
               </div>
             </div>
 
@@ -1854,8 +1716,129 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  {/* Seção de avaliações do serviço */}
-                  <ReviewsSection />
+                  {/* SEÇÃO DE AVALIAÇÕES - ESTRUTURA DIRETA IGUAL AO ITEMCARD */}
+                  <div className="border-t pt-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-medium">Avaliações do Serviço</h4>
+                      {!isOwner && user && !isRating && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIsRating(true)}
+                        >
+                          {hasUserRated ? "Editar Avaliação" : "Avaliar Serviço"}
+                        </Button>
+                      )}
+                    </div>
+
+                    {isRating && (
+                      <div className="bg-muted/30 rounded-lg p-4 mb-4 space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">
+                            Sua Avaliação
+                          </label>
+                          {renderRatingStars(userRating, setUserRating)}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">
+                            Comentário (opcional)
+                          </label>
+                          <Textarea
+                            value={ratingComment}
+                            onChange={(e) => setRatingComment(e.target.value)}
+                            placeholder="Compartilhe sua experiência com este serviço..."
+                            rows={3}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            className="resize-none"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={submitRating}
+                            disabled={isSubmittingRating || userRating === 0}
+                            className="flex-1"
+                          >
+                            {isSubmittingRating ? "Enviando..." : hasUserRated ? "Atualizar Avaliação" : "Enviar Avaliação"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setIsRating(false);
+                              if (!hasUserRated) {
+                                setUserRating(0);
+                                setRatingComment("");
+                              }
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                          {hasUserRated && (
+                            <Button
+                              variant="destructive"
+                              onClick={deleteRating}
+                              disabled={isSubmittingRating}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {loadingReviews ? (
+                      <div className="flex justify-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                      </div>
+                    ) : reviews.length > 0 ? (
+                      <div className="space-y-4 max-h-60 overflow-y-auto">
+                        {reviews.map((review) => (
+                          <div key={review.id} className="flex gap-3 border-b border-gray-200 pb-3 last:border-b-0">
+                            <Avatar className="h-10 w-10 shrink-0">
+                              <AvatarImage 
+                                src={review.profiles?.avatar_url || ""} 
+                                alt={review.profiles?.name || "Usuário"} 
+                              />
+                              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                {review.profiles?.name?.slice(0, 2).toUpperCase() || "US"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start mb-1">
+                                <h5 className="font-medium text-sm text-gray-800">
+                                  {review.profiles?.name || "Usuário Anônimo"}
+                                </h5>
+                                <span className="text-xs text-gray-500">
+                                  {new Date(review.created_at).toLocaleDateString('pt-BR')}
+                                </span>
+                              </div>
+                              {renderStars(review.rating, "sm")}
+                              {review.comment && (
+                                <p className="text-sm text-gray-600 mt-1 break-words">
+                                  {review.comment}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-muted-foreground">
+                        <p className="text-sm">Este serviço ainda não recebeu avaliações.</p>
+                        {!isOwner && user && !isRating && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => setIsRating(true)}
+                          >
+                            Seja o primeiro a avaliar
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {!isOwner && (
                     <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
