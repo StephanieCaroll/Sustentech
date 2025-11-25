@@ -54,8 +54,21 @@ export default function AddItem() {
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+   
+  if (name === 'cep') {
+    
+    const onlyNumbers = value.replace(/\D/g, '');
+    
+    let formattedCep = onlyNumbers;
+    if (onlyNumbers.length > 5) {
+      formattedCep = onlyNumbers.substring(0, 5) + '-' + onlyNumbers.substring(5, 8);
+    }
+    
+    setForm(prev => ({ ...prev, [name]: formattedCep }));
+  } else {
     setForm(prev => ({ ...prev, [name]: value }));
-  };
+  }
+};
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -193,7 +206,7 @@ export default function AddItem() {
         }
       }
       
-      navigate("/", { 
+      navigate("/app", { 
         state: { 
           message: "Produto adicionado com sucesso!",
           showToast: true
@@ -427,6 +440,8 @@ export default function AddItem() {
                       required 
                       className="bg-gray-50 border-gray-300 transition duration-300 hover:border-green-400 focus:border-green-600 focus:ring-2 focus:ring-green-100" 
                       placeholder="Ex: 01000-000"
+                       maxLength={9} 
+                       inputMode="numeric"
                     />
                   </div>
                 </div>
@@ -540,7 +555,7 @@ export default function AddItem() {
               type="button"
               variant="outline"
               className="w-full text-green-600 border-green-400 text-lg font-bold py-3.5 rounded-xl hover:bg-green-50 transition-colors"
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/app")}
             >
               Voltar ao Início
             </Button>
