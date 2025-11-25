@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, Leaf } from "lucide-react";
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +27,7 @@ const Auth = () => {
   // Redirecionar se já estiver logado
   useEffect(() => {
     if (user) {
-      navigate("/");
+      navigate("/app");
     }
   }, [user, navigate]);
 
@@ -40,7 +40,7 @@ const Auth = () => {
     setIsLoading(false);
     
     if (!error) {
-      navigate("/");
+      navigate("/app");
     }
   };
 
@@ -62,43 +62,55 @@ const Auth = () => {
     if (error) {
       setSignupError(error.message || 'Erro ao cadastrar.');
       console.log('Erro no cadastro:', error);
+    } else {
+      navigate("/app");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-4">
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center space-x-2">
-            {/* Aumento do tamanho para h-10 w-10 */}
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-glow">
-              <img src="/Logo.png" alt="Logo" className="h-full w-full object-contain" />
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-6">
+        {/* Logo atualizada igual à HomePage */}
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center space-x-3">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-2 rounded-xl">
+              <Leaf className="w-8 h-8 text-white" />
             </div>
-            <span className="font-bold text-lg bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+            <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
               SustenTech
             </span>
           </div>
-          <p className="text-muted-foreground">Entre na plataforma sustentável</p>
+          <p className="text-gray-600">Entre na plataforma sustentável</p>
         </div>
 
-        <Card>
+        <Card className="border-green-200 shadow-lg">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Acesse sua conta</CardTitle>
-            <CardDescription className="text-center">
+            <CardTitle className="text-2xl text-center text-gray-900">Acesse sua conta</CardTitle>
+            <CardDescription className="text-center text-gray-600">
               Faça login ou crie uma conta para continuar
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="signup">Cadastro</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 bg-green-100 p-1">
+                <TabsTrigger 
+                  value="login"
+                  className="data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all"
+                >
+                  Login
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="signup"
+                  className="data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all"
+                >
+                  Cadastro
+                </TabsTrigger>
               </TabsList>
             
-              <TabsContent value="login" className="space-y-4">
+              <TabsContent value="login" className="space-y-4 pt-4">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
+                    <Label htmlFor="login-email" className="text-gray-700">Email</Label>
                     <Input
                       id="login-email"
                       type="email"
@@ -106,10 +118,11 @@ const Auth = () => {
                       value={loginForm.email}
                       onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
                       required
+                      className="border-green-200 focus:border-green-500"
                     />
                   </div>
                   <div className="space-y-2 relative">
-                    <Label htmlFor="login-password">Senha</Label>
+                    <Label htmlFor="login-password" className="text-gray-700">Senha</Label>
                     <Input
                       id="login-password"
                       type={showLoginPassword ? "text" : "password"}
@@ -117,12 +130,13 @@ const Auth = () => {
                       value={loginForm.password}
                       onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                       required
+                      className="border-green-200 focus:border-green-500"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute right-1 top-7 h-7 w-7"
+                      className="absolute right-1 top-7 h-7 w-7 text-gray-500 hover:text-green-600"
                       onClick={() => setShowLoginPassword(!showLoginPassword)}
                     >
                       {showLoginPassword ? (
@@ -134,18 +148,18 @@ const Auth = () => {
                   </div>
 
                   <div className="text-right">
-                  <button
-                  type="button"
-                  onClick={() => navigate('/forgot-password')}
-                  className="text-sm text-primary hover:underline"
-                  >
-                  Esqueceu sua senha?
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/forgot-password')}
+                      className="text-sm text-green-600 hover:text-green-700 hover:underline"
+                    >
+                      Esqueceu sua senha?
+                    </button>
                   </div>
 
                   <Button 
                     type="submit" 
-                    className="w-full bg-gradient-to-r from-primary to-primary-glow" 
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-2" 
                     disabled={isLoading}
                   >
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -154,10 +168,10 @@ const Auth = () => {
                 </form>
               </TabsContent>
             
-              <TabsContent value="signup" className="space-y-4">
+              <TabsContent value="signup" className="space-y-4 pt-4">
                 <form onSubmit={handleSignup} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Nome</Label>
+                    <Label htmlFor="signup-name" className="text-gray-700">Nome</Label>
                     <Input
                       id="signup-name"
                       type="text"
@@ -165,10 +179,11 @@ const Auth = () => {
                       value={signupForm.name}
                       onChange={(e) => setSignupForm({ ...signupForm, name: e.target.value })}
                       required
+                      className="border-green-200 focus:border-green-500"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email" className="text-gray-700">Email</Label>
                     <Input
                       id="signup-email"
                       type="email"
@@ -176,10 +191,11 @@ const Auth = () => {
                       value={signupForm.email}
                       onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
                       required
+                      className="border-green-200 focus:border-green-500"
                     />
                   </div>
                   <div className="space-y-2 relative">
-                    <Label htmlFor="signup-password">Senha</Label>
+                    <Label htmlFor="signup-password" className="text-gray-700">Senha</Label>
                     <Input
                       id="signup-password"
                       type={showSignupPassword ? "text" : "password"}
@@ -188,12 +204,13 @@ const Auth = () => {
                       onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
                       required
                       minLength={6}
+                      className="border-green-200 focus:border-green-500"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute right-1 top-7 h-7 w-7"
+                      className="absolute right-1 top-7 h-7 w-7 text-gray-500 hover:text-green-600"
                       onClick={() => setShowSignupPassword(!showSignupPassword)}
                     >
                       {showSignupPassword ? (
@@ -204,7 +221,7 @@ const Auth = () => {
                     </Button>
                   </div>
                   <div className="space-y-2 relative">
-                    <Label htmlFor="signup-confirm-password">Confirmar senha</Label>
+                    <Label htmlFor="signup-confirm-password" className="text-gray-700">Confirmar senha</Label>
                     <Input
                       id="signup-confirm-password"
                       type={showConfirmPassword ? "text" : "password"}
@@ -213,12 +230,13 @@ const Auth = () => {
                       onChange={(e) => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
                       required
                       minLength={6}
+                      className="border-green-200 focus:border-green-500"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute right-1 top-7 h-7 w-7"
+                      className="absolute right-1 top-7 h-7 w-7 text-gray-500 hover:text-green-600"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
                       {showConfirmPassword ? (
@@ -229,11 +247,13 @@ const Auth = () => {
                     </Button>
                   </div>
                   {signupError && (
-                    <div className="text-red-500 text-sm text-center">{signupError}</div>
+                    <div className="text-red-500 text-sm text-center bg-red-50 py-2 rounded-lg border border-red-200">
+                      {signupError}
+                    </div>
                   )}
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-primary to-primary-glow"
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-2"
                     disabled={isLoading}
                   >
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

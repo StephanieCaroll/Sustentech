@@ -4,6 +4,7 @@ import {
     MapPin,
     User,
     LogOut,
+    Leaf
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +48,6 @@ const Header = ({
     };
     
     const navigateToMapPage = (locationData: { lat: number, lng: number } | null) => {
-      
         navigate("/mapa", { 
             state: { 
                 items, 
@@ -60,7 +60,6 @@ const Header = ({
     const getUserLocation = () => {
         const handleError = () => {
             setUserLocation(null); 
-           
             navigateToMapPage(null);
             console.error("Geolocalização indisponível. Abrindo mapa no centro padrão.");
         }
@@ -133,17 +132,32 @@ const Header = ({
         }
     }, [isMessagesOpen, user]);
 
+    const handleLogoClick = () => {
+        if (user) {
+            navigate("/app");
+        } else {
+            navigate("/");
+        }
+    };
+
+    const handleSignOut = async () => {
+        await signOut();
+        navigate("/"); 
+    };
+
     return (
         <>
-           
             <header className={`sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 overflow-x-hidden`}>
                 <div className="w-full max-w-screen-xl mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8 overflow-hidden break-words">
-                    <div className="flex items-center space-x-2 min-w-fit -mt-1">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-lg"> 
-                         
-                            <img src="/Logo.png" alt="Logo" className="h-full w-full object-contain" /> 
+                    
+                    <div 
+                        className="flex items-center space-x-3 min-w-fit cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={handleLogoClick}
+                    >
+                        <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-2 rounded-xl">
+                            <Leaf className="w-6 h-6 text-white" />
                         </div>
-                        <span className="font-bold text-xl bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent hidden sm:block">
+                        <span className="font-bold text-xl bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent hidden sm:block">
                             SustenTech
                         </span>
                     </div>
@@ -167,12 +181,12 @@ const Header = ({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="relative h-10 w-10"
+                                    className="relative h-10 w-10 hover:bg-green-50"
                                     onClick={() => setIsMessagesOpen(true)}
                                 >
-                                    <MessageCircle className="h-6 w-6" />
+                                    <MessageCircle className="h-6 w-6 text-green-700" />
                                     {unreadMessagesCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary rounded-full text-[10px] text-primary-foreground flex items-center justify-center">
+                                        <span className="absolute -top-1 -right-1 h-4 w-4 bg-green-600 rounded-full text-[10px] text-white flex items-center justify-center">
                                             {unreadMessagesCount > 9 ? "9+" : unreadMessagesCount}
                                         </span>
                                     )}
@@ -181,23 +195,29 @@ const Header = ({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="relative h-10 w-10"
+                                    className="relative h-10 w-10 hover:bg-green-50"
                                     onClick={getUserLocation} 
                                 >
-                                    <MapPin className="h-6 w-6" />
+                                    <MapPin className="h-6 w-6 text-green-700" />
                                 </Button>
 
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-10 w-10">
-                                            <User className="h-6 w-6" />
+                                        <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-green-50">
+                                            <User className="h-6 w-6 text-green-700" />
                                         </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => navigate("/profile")}>
+                                    <DropdownMenuContent align="end" className="border-green-200">
+                                        <DropdownMenuItem 
+                                            onClick={() => navigate("/profile")}
+                                            className="text-green-700 hover:bg-green-50 cursor-pointer"
+                                        >
                                             Conta
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => signOut()}>
+                                        <DropdownMenuItem 
+                                            onClick={handleSignOut} 
+                                            className="text-green-700 hover:bg-green-50 cursor-pointer"
+                                        >
                                             <LogOut className="mr-2 h-4 w-4" />
                                             Sair
                                         </DropdownMenuItem>
@@ -207,7 +227,7 @@ const Header = ({
                         ) : (
                             <Button
                                 onClick={() => navigate("/auth")}
-                                className="bg-gradient-to-r from-primary to-primary-glow h-12"
+                                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 h-12 text-white"
                             >
                                 Entrar
                             </Button>

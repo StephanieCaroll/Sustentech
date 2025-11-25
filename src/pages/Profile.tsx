@@ -357,7 +357,7 @@ export default function Profile() {
             size="icon"
             variant="ghost"
             className="absolute top-4 left-4 z-10 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/app")}
             title="Voltar ao Início"
           >
             <ArrowLeft className="h-5 w-5" />
